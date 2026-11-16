@@ -1,0 +1,39 @@
+/* MAWS Lite — quiet, legible finishing layer. Original theme colors remain editable. */
+#chat .mw-panel,
+#chat .mw-offer-slot,
+.mw-workflow .mw-popup-panel,
+.mw-side-chooser .mw-popup-panel {
+  font-family: system-ui, "Segoe UI", Verdana, sans-serif;
+  text-rendering: optimizeLegibility;
+  line-height: 1.58;
+  letter-spacing: 0.012em;
+  font-variant-ligatures: none;
+}
+#chat .mw-panel { border-radius: 12px; }
+#chat .mw-panel button, .mw-workflow button,
+#chat .mw-panel input, #chat .mw-panel select,
+#chat .mw-panel textarea { min-height: 32px; }
+#chat .mw-panel p, #chat .mw-panel label,
+#chat .mw-panel .mw-note { overflow-wrap: anywhere; }
+#chat .mw-panel button:focus-visible,
+#chat .mw-panel input:focus-visible,
+#chat .mw-panel textarea:focus-visible,
+#chat .mw-panel select:focus-visible,
+.mw-workflow :focus-visible {
+  outline: 2px solid #c9af8c !important;
+  outline-offset: 3px !important;
+}
+#chat .mw-panel .mw-tabs button { min-height: 38px; }
+#chat .mw-panel .mw-content { padding-inline: clamp(12px, 2vw, 18px); }
+@media (prefers-reduced-motion: reduce) {
+  #chat .mw-panel *, .mw-popup *, .mw-side-chooser * {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* Calm solid borders instead of decorative gradient masks. */
+#chat .mw-panel .mw-relcard::before,
+#chat .mw-panel .mw-npc.mw-npc-card::before { display: none !important; }
+#chat .mw-panel .mw-relcard,
+#chat .mw-panel .mw-npc.mw-npc-card { border: 1px solid var(--mw-rel-main, var(--maws-color-2,#788693)) !important; }
