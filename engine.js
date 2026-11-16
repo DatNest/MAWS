@@ -1448,9 +1448,14 @@ function openMainPlanner(){
  };
 }
 
+// Session-only notification policy: restored history is never a new event.
+function mawsAllowsSilentSceneScan(freshPair,actualPair){return !!freshPair&&freshPair===actualPair;}
+function mawsShouldCelebrate(isManual,completionAt,freshTurnAt){
+ return !!isManual||(Number.isInteger(freshTurnAt)&&freshTurnAt>=0&&completionAt===freshTurnAt);
+}
 // Pure test mode leaves SillyTavern untouched. Accessible from Node/Chromium fixtures.
 if(typeof window!=='undefined'&&(window.__MAWS_UNIVERSAL_TEST_ONLY__||window.__MAWS_V11_TEST_ONLY__)){
- const api={mawsRpText,contentFp,legacyContentFp,contentSigMatches,relationshipLabel,PROMPT_FIELDS,promptValue,sidePlanPrompt,investigationReceipts,normalizeGeneratedPlan,mawsServiceProfile,sceneReceipts,storyMemoryEntries,validateDetailedMemory,parseCombinedSummary,ARCHIVE_SUMMARY_INSTRUCTION,LOREBOOK_SUMMARY_INSTRUCTION,storyContext,mainPlanPrompt,skipDraftPrompt,activateQuest,enforceSingleQuest,normalizeEpisode,project,currentFocusPrompt,questGoalChecks,questCheckPrompt,validateQuestArcPlan,arcDefinitions,applyArcProjection,defaultState,parsedTags,auditConditions,auditThreshold,auditComplete,progress,hash,normalizeSpeakerMarker,validSpeakerMarker,replaceSpeechMarkerLine,fp,normalize,questDefs,validateStoryPack,installStoryPack,explicitNamedParticipants,idForName,anyNamedIn,rpCalendar,rpDateHint,rpElapsed,rpNarratedPassage,rpDateFormat,makeProfile,validateProfile,applyImportedProfile,genreOf,companionsOf,questTags,questCharacterIds,socialIntensity,socialStatusStyle,socialActingCast,socialBehaviorLine,socialBehaviorPrompt,goalGuidance,nextMainQuest,validateSideChoices,QUEST_GENRES};
+ const api={mawsRpText,contentFp,legacyContentFp,contentSigMatches,relationshipLabel,PROMPT_FIELDS,promptValue,sidePlanPrompt,investigationReceipts,normalizeGeneratedPlan,mawsServiceProfile,sceneReceipts,storyMemoryEntries,validateDetailedMemory,parseCombinedSummary,ARCHIVE_SUMMARY_INSTRUCTION,LOREBOOK_SUMMARY_INSTRUCTION,storyContext,mainPlanPrompt,skipDraftPrompt,activateQuest,enforceSingleQuest,normalizeEpisode,project,currentFocusPrompt,questGoalChecks,questCheckPrompt,validateQuestArcPlan,arcDefinitions,applyArcProjection,defaultState,parsedTags,auditConditions,auditThreshold,auditComplete,progress,hash,normalizeSpeakerMarker,validSpeakerMarker,replaceSpeechMarkerLine,fp,normalize,questDefs,validateStoryPack,installStoryPack,explicitNamedParticipants,idForName,anyNamedIn,rpCalendar,rpDateHint,rpElapsed,rpNarratedPassage,rpDateFormat,makeProfile,validateProfile,applyImportedProfile,genreOf,companionsOf,questTags,questCharacterIds,socialIntensity,socialStatusStyle,socialActingCast,socialBehaviorLine,socialBehaviorPrompt,goalGuidance,nextMainQuest,validateSideChoices,QUEST_GENRES,mawsAllowsSilentSceneScan,mawsShouldCelebrate};
  window.__MAWS_UNIVERSAL_API__=api;window.__MAWS_V11_API__=api;return;
 }
 const host=window.parent,doc=host.document;
@@ -1458,7 +1463,7 @@ try{host.__mawsUniversalCleanup?.();host.__mawsAvatarCleanup?.()}catch(_e){}
 let stopped=false,frame=null,busy=false,lastPrompt='',saving=Promise.resolve(),directorScrollRequested=false;
 let promptWanted='',promptScope='',promptWriting=null;
 // Diagnostics use current chat data without extra model calls.
-const MAWS_BUILD='Universal 2.2.0 · Lite Extension', mwDebugEvents=[];
+const MAWS_BUILD='Universal Lite 2.2.1 · quiet-resume', mwDebugEvents=[];
 let mwDirectorClicks=0,mwLastUiAction='нет',mwLastRenderError='';
 function mwDebugRecord(kind,detail=''){
  try{mwDebugEvents.push({at:new Date().toLocaleTimeString('ru-RU'),kind:String(kind).slice(0,80),detail:String(detail).slice(0,420)});if(mwDebugEvents.length>24)mwDebugEvents.shift();}catch(_e){}
@@ -1581,7 +1586,22 @@ function read(c){
  readMemo={raw,scope,chat,length:chat.length,tailSig,revision:mawsChatRevision,identitySig,state};
  return state;
 }
-function store(c,s){if(!c.chatMetadata)return;const {identity,...saved}=s;c.chatMetadata[KEY]=copyPlain(saved);saving=saving.then(()=>c.saveMetadata?.()).catch(e=>{console.warn('[MAWS] metadata save',e);host.alert('MAWS: не удалось сохранить изменения чата. Они остались в текущем сеансе. Сохрани профиль в файл и проверь подключение к SillyTavern. Причина: '+String(e?.message||e));});}
+const saveFailureWarnedScopes=new Set();
+function store(c,s){
+ if(!c.chatMetadata)return;
+ const scope=currentScope(c),{identity,...saved}=s;
+ c.chatMetadata[KEY]=copyPlain(saved);
+ saving=saving.then(()=>c.saveMetadata?.()).catch(e=>{
+  console.warn('[MAWS] metadata save',e);
+  mwDebugRecord('save-error',String(e?.message||e));
+  if(!saveFailureWarnedScopes.has(scope)){
+   saveFailureWarnedScopes.add(scope);
+   const notice='MAWS: не удалось сохранить изменения чата. Экспортируй профиль и проверь сохранение SillyTavern.';
+   // Non-blocking and at most once per chat/session. Never replay modal errors.
+   if(typeof host.toastr?.error==='function')host.toastr.error(notice,'MAWS',{timeOut:8000});
+  }
+ });
+}
 // Immutable per-assistant snapshots. Older messages are replayed from their
 // own evidence if they predate installation, never filled using today's state.
 const HISTORY_FIELDS=['quests','people','npcs','focus','pausedFocus','world','scene','memories','deltas','questDeltas'];
@@ -1721,7 +1741,13 @@ function confirmQuestSwitch(c,target){
  const v=getView(c),other=Object.entries(v.quests).find(([id,q])=>id!==target&&q.status==='active');
  return !other||host.confirm('Сейчас активно «'+v.defs[other[0]].title+'». Приостановить его и перейти к другому заданию? Прогресс сохранится.');
 }
-function append(c,ev){if(['directStart','focus','queueStart','rejoin'].includes(ev.kind)&&!confirmQuestSwitch(c,ev.quest))return false;const id=lastAssistant(c.chat||[]);if(id<0)return false;update(c,s=>{s.serial++;s.ledger.push({...ev,anchor:anchorOf(c.chat,id),serial:s.serial});});return true;}
+function append(c,ev){
+ if(['directStart','focus','queueStart','rejoin'].includes(ev.kind)&&!confirmQuestSwitch(c,ev.quest))return false;
+ const id=lastAssistant(c.chat||[]);if(id<0)return false;
+ update(c,s=>{s.serial++;s.ledger.push({...ev,anchor:anchorOf(c.chat,id),serial:s.serial});});
+ if(ev.kind==='finishQuest')manualCompletionIds.add(currentScope(c)+'|'+ev.quest);
+ return true;
+}
 function getView(c,n=lastAssistant(c.chat||[])){const s=read(c);return timelineView(c,s,n);}
 
 // An additional silent context read updates ONLY scene metadata, not canon
@@ -1729,6 +1755,11 @@ function getView(c,n=lastAssistant(c.chat||[])){const s=read(c);return timelineV
 let chatEpoch=0, chatScrollPending=true;
 const SCENE_RECEIPT_VERSION=4;
 let scenePromise=Promise.resolve(),sceneBusy=false,sceneQueued=false,generationRunning=false,sceneAttemptKey='';
+// No startup/autoload tasks for previously played replies. Explicit user actions
+// and new completions in THIS page session are the only eligible triggers.
+const freshTurnPairs=new Map(),freshCompletionTurns=new Map(),manualCompletionIds=new Set();
+let generatingAt=null;
+
 function currentScope(c){return [c.characterId,c.groupId,c.getCurrentChatId?.()].join('|');}
 // Transient action feedback survives panel rerenders but never enters roleplay history.
 const actionStates=new Map();
@@ -1818,7 +1849,11 @@ function jsonObjectFromModel(raw){
 }
 function validDateISO(s){if(typeof s!=='string'||!/^20\d\d-\d\d-\d\d$/.test(s))return false;const d=new Date(s+'T12:00:00Z');return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===s;}
 function queueSceneScan(force=false){
- if(!force&&(sceneQueued||generationRunning))return scenePromise;
+ if(!force){
+  if(sceneQueued||generationRunning)return scenePromise;
+  const c=ctx(),id=lastAssistant(c.chat||[]);
+  if(id<0||!mawsAllowsSilentSceneScan(freshTurnPairs.get(currentScope(c)),scenePairSig(c.chat,id)))return scenePromise;
+ }
  sceneQueued=true;
  const result=force?runVisibleAction('scene-scan','Обновляю сцену…',()=>performSceneScan(true)):performSceneScan(false);
  return Promise.resolve(result).finally(()=>{sceneQueued=false;});
@@ -1829,6 +1864,7 @@ function performSceneScan(force=false){
   const c=ctx();if(!isMaws(c)||!c.chatMetadata)return;
   let s=ensureTimeline(c,read(c));if(s.sceneAuto===false&&!force)return;
   const id=lastAssistant(c.chat||[]),rec=timelineRecord(c,s,id);
+  if(!force&&!mawsAllowsSilentSceneScan(freshTurnPairs.get(currentScope(c)),scenePairSig(c.chat,id)))return;
   if(!rec||(!force&&rec.sceneScanned&&rec.sceneReceiptVersion===SCENE_RECEIPT_VERSION&&rec.scenePairSig===scenePairSig(c.chat,id)))return;
   if(!mawsServiceProfile(read(c))){if(force)throw Error('Выбери профиль подключения движка в разделе «Служебный ИИ».');console.info('[MAWS] Автоанализ сцены недоступен: профиль движка не выбран.');return;}
   const scope=currentScope(c),signature=contentFp(c.chat?.[id]),pairSig=scenePairSig(c.chat,id),epoch=chatEpoch;
@@ -2239,8 +2275,8 @@ async function planSideQuestCore(qid){
   const arcs=normalizeGeneratedPlan(planningReply(raw,'plan'),d.title);
   const c2=ctx();if(stopped||chatEpoch!==epoch||currentScope(c2)!==scope||storyStamp(c2)!==stamp||getView(c2).quests[qid]?.status!=='active')return;
   update(c2,s=>{const previous=s.generated[qid]||d;if(Array.isArray(previous.arcs)&&previous.arcs.length)return;s.generated[qid]={...previous,arcs};});
-  redraw();host.alert('План побочки сохранён: '+arcs.length+' арок.');mwDebugRecord('side-plan-ok',qid);
- }catch(err){if(stopped||chatEpoch!==epoch||currentScope(ctx())!==scope||storyStamp(ctx())!==stamp)return;mwDebugRecord('side-plan-error',err?.message||err);host.alert('Не удалось создать побочку: '+(err?.message||String(err)));throw err;}
+  redraw();mwDebugRecord('side-plan-ok',qid);
+ }catch(err){if(stopped||chatEpoch!==epoch||currentScope(ctx())!==scope||storyStamp(ctx())!==stamp)return;mwDebugRecord('side-plan-error',err?.message||err);throw err;}
  finally{sidePlannerBusy.delete(qid);}
 }
 
@@ -2696,11 +2732,31 @@ function completionCelebration(id){
  doc.body.appendChild(overlay);
 }
 function watchCompletions(c,v){
- const scope=currentScope(c);if(celebrationScope!==scope){celebrationScope=scope;celebrationInitialized=false;}
- const seenNow=new Set(Object.entries(v.quests).filter(([,q])=>q.status==='completed').map(([id])=>completionToken(c,v,id)));
- if(!celebrationInitialized){for(const k of seenNow)celebrationSeen.add(k);celebrationInitialized=true;return;}
- for(const [id,q] of Object.entries(v.quests))if(q.status==='completed'){
-  const token=completionToken(c,v,id);if(!celebrationSeen.has(token)){celebrationSeen.add(token);completionCelebration(id);break;}
+ const scope=currentScope(c);
+ if(celebrationScope!==scope){celebrationScope=scope;celebrationInitialized=false;}
+ const finished=Object.entries(v.quests).filter(([,q])=>q.status==='completed');
+ // First projection after loading/switching a chat is its historical baseline.
+ if(!celebrationInitialized){
+  for(const [id] of finished)celebrationSeen.add(completionToken(c,v,id));
+  celebrationInitialized=true;
+  return;
+ }
+ const freshTurn=freshCompletionTurns.get(scope);
+ let displayed=false;
+ for(const [id] of finished){
+  const token=completionToken(c,v,id);
+  if(celebrationSeen.has(token))continue;
+  celebrationSeen.add(token);
+  const manualKey=scope+'|'+id,manual=manualCompletionIds.has(manualKey);
+  manualCompletionIds.delete(manualKey);
+  // A completion must be anchored to the exact newly generated assistant reply,
+  // or explicitly finished by the player in this session. Never infer 'new'
+  // merely because a restored snapshot was recomputed later.
+  const completionAt=v.completions?.some(item=>item.id===id&&item.status==='completed'&&item.at===freshTurn)
+   ? freshTurn:null;
+  if(!displayed&&mawsShouldCelebrate(manual,completionAt,freshTurn)){
+   completionCelebration(id);displayed=true;
+  }
  }
 }
 
@@ -3387,8 +3443,8 @@ function render(){frame=null;if(stopped||busy)return;let c;try{c=ctx();}catch{re
   renderedScope=scope;
  }
  skipWidget();let s=ensureTimeline(c,read(c));if(c.chatMetadata&&!Array.isArray(c.chatMetadata[KEY]?.legacyNpcPosts))store(c,s);avatarOverrideCache=s.avatarOverrides||{};applyTheme(s.theme);if(last>=0)s=initSeen(c,s,timelineView(c,s,last));
- const planCandidates=last>=0?Object.entries(timelineView(c,s,last).quests).filter(([qid,q])=>qid.startsWith('SIDE_')&&q.status==='active'&&!q.arcs?.length&&!sidePlannerAttempted.has(currentScope(c)+'|'+qid)):[];
- if(planCandidates.length)host.setTimeout(()=>{if(!stopped)void planSideQuest(planCandidates[0][0]);},0);
+ // Historic unfinished side quests stay untouched. Use the 'Создать план' button
+ // on an active quest to retry them; newly created quests are planned explicitly.
 // Read layout in one pass, then mutate only messages near the viewport.
 // Archived messages gain their controls as the reader scrolls to them.
 const all=root.querySelectorAll('.mes[mesid]');
@@ -3428,7 +3484,7 @@ for(const el of eligible){const id=Number(el.getAttribute('mesid'));if(!Number.i
    destination.classList.add('mw-director-visible');
   }else console.warn('[MAWS] Dev panel was requested but not rendered: latest message missing or another tab active.');
  }
- watchCompletions(c,getView(c));if(last>=0&&!generationRunning&&!sceneBusy&&!sceneQueued&&s.sceneAuto!==false&&mawsServiceProfile(s)&&!(timelineRecord(c,s,last)?.sceneScanned&&timelineRecord(c,s,last)?.sceneReceiptVersion===SCENE_RECEIPT_VERSION&&timelineRecord(c,s,last)?.scenePairSig===scenePairSig(chat,last)))void queueSceneScan(false);
+ watchCompletions(c,getView(c));if(last>=0&&mawsAllowsSilentSceneScan(freshTurnPairs.get(scope),scenePairSig(chat,last))&&!generationRunning&&!sceneBusy&&!sceneQueued&&s.sceneAuto!==false&&mawsServiceProfile(s)&&!(timelineRecord(c,s,last)?.sceneScanned&&timelineRecord(c,s,last)?.sceneReceiptVersion===SCENE_RECEIPT_VERSION&&timelineRecord(c,s,last)?.scenePairSig===scenePairSig(chat,last)))void queueSceneScan(false);
 }catch(err){mwLastRenderError=String(err?.stack||err).slice(0,900);mwDebugRecord('render-error',mwLastRenderError);console.error('[MAWS] render',err);}finally{observer.takeRecords();busy=false;}}
 function schedule(){if(!stopped&&frame===null)frame=host.requestAnimationFrame(render);}
 function redraw(){schedule();void promptSync();}
@@ -3870,14 +3926,29 @@ doc.addEventListener('change',mawsOnHudToggle,true);
 doc.addEventListener('click',mawsOnHudOpenClick,true);
 
 const initial=ctx();for(const name of ['CHAT_CHANGED','CHARACTER_MESSAGE_RENDERED','MESSAGE_EDITED','MESSAGE_UPDATED','MESSAGE_SWIPED','MESSAGE_DELETED','GENERATION_STARTED','GENERATION_ENDED','MESSAGE_SENT']){const ev=initial.event_types?.[name];if(ev&&initial.eventSource){const fn=()=>{
- if(name==='GENERATION_STARTED')generationRunning=true;
- if(name==='GENERATION_ENDED'||name==='CHAT_CHANGED')generationRunning=false;
+ if(name==='GENERATION_STARTED'){
+  generationRunning=true;
+  try{const now=ctx(),last=lastAssistant(now.chat||[]);generatingAt={scope:currentScope(now),last,pair:last>=0?scenePairSig(now.chat,last):''};}catch(_){generatingAt=null;}
+ }
+ if(name==='GENERATION_ENDED'){
+  generationRunning=false;
+  try{
+   const now=ctx(),scope=currentScope(now),last=lastAssistant(now.chat||[]);
+   if(generatingAt?.scope===scope&&last>=0&&(last>generatingAt.last||last===generatingAt.last&&scenePairSig(now.chat,last)!==generatingAt.pair)){
+    freshTurnPairs.set(scope,scenePairSig(now.chat,last));
+    freshCompletionTurns.set(scope,last);
+   }
+  }catch(e){mwDebugRecord('generation-end',String(e?.message||e));}
+  generatingAt=null;
+ }
+ if(name==='CHAT_CHANGED'){generationRunning=false;generatingAt=null;}
+
  // The visible text is still being streamed; let ST render it first.
  if(name==='MESSAGE_UPDATED'&&generationRunning)return;
  if(['CHAT_CHANGED','MESSAGE_SENT','MESSAGE_SWIPED','MESSAGE_EDITED','MESSAGE_DELETED','MESSAGE_UPDATED','GENERATION_ENDED','CHARACTER_MESSAGE_RENDERED'].includes(name)){
   mawsChatRevision++;readMemo=null;
  }
- if(name==='CHAT_CHANGED'){chatEpoch++;chatScrollPending=true;closePopupWindows();renderedScope='';}
+ if(name==='CHAT_CHANGED'){chatEpoch++;chatScrollPending=true;closePopupWindows();renderedScope='';freshTurnPairs.clear();freshCompletionTurns.clear();manualCompletionIds.clear();}
  if(['CHAT_CHANGED','MESSAGE_SENT','MESSAGE_SWIPED','MESSAGE_EDITED','MESSAGE_DELETED'].includes(name)){resetWorkflows();closeSideChooser();}
  redraw();
  if(['GENERATION_ENDED','CHAT_CHANGED','MESSAGE_SWIPED','MESSAGE_EDITED'].includes(name))void queueSceneScan(false);
