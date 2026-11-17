@@ -8,7 +8,7 @@
   "generate_interceptor": "MAWSNativeBeforeGeneration",
   "hooks": { "enable": "onEnable", "disable": "onDisable" },
   "author": "MAWS / Ness",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "auto_update": false,
   "minimum_client_version": "1.12.6"
 }

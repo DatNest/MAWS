@@ -73,14 +73,14 @@ function mountPanel() {
       <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down" aria-hidden="true"></div>
     </div>
     <div class="inline-drawer-content maws-native-body">
-      <div class="maws-native-eyebrow">Ролевой движок · 2.4.0</div>
+      <div class="maws-native-eyebrow">Ролевой движок · 2.4.1</div>
       <label class="maws-native-switch" for="maws-native-enabled">
         <input id="maws-native-enabled" type="checkbox" role="switch" aria-describedby="maws-native-hint">
         <span class="maws-native-switch-track" aria-hidden="true"></span>
         <span class="maws-native-switch-label"><b>Включить MAWS в этом чате</b><small>В других чатах режим не изменится</small></span>
       </label>
       <div id="maws-native-hint" class="maws-native-status" data-maws-status role="status" aria-live="polite"></div>
-      <div class="maws-native-actions"><button type="button" class="menu_button" data-maws-open>Показать MAWS в чате</button></div>
+      <div class="maws-native-actions"><button type="button" class="maws-native-open" data-maws-open>Открыть панель MAWS</button></div>
       <p class="maws-native-note">Оформление, цвета, промпты, задания и переключатель сохраняются в метаданных этой ролевой. Кэш остаётся в памяти браузера; отдельные копии чатов не создаются.</p>
     </div>`;
   panel.addEventListener('change', event => {

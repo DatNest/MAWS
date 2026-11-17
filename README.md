@@ -1,4 +1,4 @@
-# MAWS Universal · Native 2.4.0
+# MAWS Universal · Native 2.4.1
 
 Самостоятельное расширение SillyTavern. Не требует JS Runner, Regex или Tavern Helper для основного ролевого промпта, маркеров MAWS и работы главной панели.
 
