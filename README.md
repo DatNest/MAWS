@@ -1,45 +1,61 @@
-# MAWS Universal · Lite
+# MAWS Universal · Native 2.4.0
 
-Standalone SillyTavern UI extension ported from the attached **MAWS Universal — универсальный ролевой движок — Light** Tavern Helper script (engine v43). Original quest/scene/social mechanics and the MAWS chat metadata key are preserved.
+Самостоятельное расширение SillyTavern. Не требует JS Runner, Regex или Tavern Helper для основного ролевого промпта, маркеров MAWS и работы главной панели.
 
-## Install
+## Главное в этой версии
 
-1. **Back up the chat and the MAWS profile JSON first.**
-2. Disable the **old MAWS Tavern Helper script** in Tavern Helper (otherwise two copies can fight over the same prompt and panels).
-3. Copy the entire `MAWS_Universal_Lite_Extension` folder into `SillyTavern/data/<your-user>/extensions/` (if your ST build uses legacy paths, `public/scripts/extensions/third-party/` can also work). Restart SillyTavern or refresh the page.
-4. Or upload this folder **as the root of your own Git repository** and use **Extensions → Install Extension → repository URL**. A local `.zip` is not a repository URL and cannot be pasted into that field.
-5. Open the last bot reply; the MAWS card will appear there. Its normal sections and custom theme are retained.
+- **ВКЛ/ВЫКЛ сохраняется отдельно в каждом чате**: `chatMetadata.maws_engine_universal_v1.enabled`. В незнакомых чатах по умолчанию **выключено**. Старый глобальный переключатель версии 2.3.0 больше не используется; существующие чаты нужно включить по отдельности.
+- Цветовая палитра (`theme`), цветная речь (`speakerStyles`), пользовательские промпты (`promptOverrides`), аватары/оформление, NPC, отношения и задания остаются в метаданных **текущего чата**.
+- Переключение чата перенастраивает отображение и промпт; в выключенном чате снимаются панели, обработчики и MAWS-инжект. Тихие/вспомогательные генерации не получают главный промпт.
+- Состояние **не хранится в localStorage** браузера. Один и тот же сервер и профиль пользователя SillyTavern позволяют читать сохранённые данные с разных устройств.
+- Память стала компактнее: не больше **32 полных исторических снимков** состояния вместо сохранения полного снимка после каждого ответа. Для старых завершённых заданий сохраняются небольшие записи о начале и результате, чтобы не потерять архив. Исходные сообщения и событийный журнал не удаляются.
+- Кэш проекций и элементы интерфейса временные. Старые чаты не запускают повторную генерацию побочных планов и массовые уведомления при загрузке.
+- Интерфейс использует **один `style.css`**, включая редактор промптов, а не CSS-патчи, встроенные в JavaScript. Нет градиентов. Один `index.js` управляет жизненным циклом, один `engine.js` реализует механики.
 
-## Performance changes
+## Установка и переход с 2.3.0
 
-- Only the most recent three and near-viewport message shells are decorated per repaint. Scrolling lazily reveals archived MAWS panels.
-- Cached chat-state normalization and memoized latest-bot index avoid redundant scans of the full conversation.
-- Projection cache is bounded to 16 entries; the cache is invalidated on chat edits/switches.
-- Chat scrolling is throttled; in-progress streaming replies do not cause MAWS to recompute every token.
-- The existing chat-local metadata storage (`maws_engine_universal_v1`) and profile format remain unchanged.
+1. **Сделай резервную копию важных чатов и экспортируй профили MAWS.**
+2. Выключи прежний MAWS в JS Runner / Tavern Helper. Удали или отключи вторую копию MAWS, если она есть.
+3. Закрой SillyTavern, распакуй ZIP и **замени содержимое** старой папки `MAWS_Universal_Lite_Extension` новой версией. Не помещай папку внутрь папки.
+4. Для профиля пользователя SillyTavern путь обычно `data/<пользователь>/extensions/MAWS_Universal_Lite_Extension/`. Для глобального расположения: `public/scripts/extensions/third-party/MAWS_Universal_Lite_Extension/`.
+5. Проверь, что `manifest.json`, `index.js`, `engine.js`, `style.css` лежат **непосредственно** в папке MAWS.
+6. Перезапусти SillyTavern или нажми **Ctrl+Shift+R**.
+7. Открой **Расширения**, раскрой **MAWS Universal**, включи **«Включить MAWS в этом чате»**. Повтори только в тех чатах, где MAWS нужен.
 
-## Compatibility and limitations
+В SillyTavern кнопка установки из Git принимает URL репозитория, не ZIP-архив. Этот ZIP предназначен для распаковки в папку расширений.
 
-- SillyTavern's `SillyTavern.getContext()` and `setExtensionPrompt()` are required. Model-assisted tasks also require the **Connection Manager** and a selected service profile.
-- Worldbook operations in the source rely on optional **Tavern Helper worldbook functions**. Those functions may not be exposed to native UI extensions in your installation; worldbook buttons may report that their API is unavailable. The base scene, NPC, relationship, quest, prompt, save/import, and theme interfaces do not depend on them.
-- This port has automated **syntax, manifest and pure-logic tests**, not a live integration test in the user's SillyTavern instance. Performance improvements are structural; actual browser FPS and compatibility with every other extension are not guaranteed.
-- If chat editing or other HUD extensions replace message markup, the source's mutation observer still repairs the visible MAWS decoration.
-- For a smoother first installation, keep existing chats backed up and check that metadata is loading for each distinct chat before discarding your Tavern Helper script export.
+## Перенос между устройствами
 
-## Tests
+**Устройства подключены к одной установленной SillyTavern и одному её пользовательскому профилю:** сохранённые на сервере метаданные ролевой, включая флаг включения, доступны на обоих устройствах. Потребуется установить само расширение на сервер SillyTavern только один раз. Настройки сохраняются через `saveMetadata()`.
 
-`node tests/core.test.cjs` tests the manifest, API, timeline/calendars, state tags and prompt generation. These pass in the build environment.
+**Разные серверы/установки:** автоматической синхронизации нет. Переноси **JSONL-экспорт чата с метаданными** или файл экспорта профиля MAWS. TXT не содержит метаданных. Лорбуки, изображения, API-ключи и профили подключений SillyTavern — отдельные ресурсы, они не включаются автоматически в профиль MAWS и должны быть перенесены отдельно при смене сервера.
 
-`python tests/browser_smoke.py` provides a browser smoke test with a fake SillyTavern context for local environments where Playwright and Chromium are available. This **was not executed successfully** in the build environment because browser navigation is administratively blocked; it is not proof of compatibility with a real ST installation.
+## Объём сохраняемых данных
 
-## Uninstall
+MAWS не делает копий каждого чата в отдельном хранилище. Одна запись в `chatMetadata` содержит необходимые настройки, пользовательские действия и до 32 крупных снимков. Завершённые задания остаются в компактном `questArchive`, начала в `questAnchors`. **История ручных действий и сюжетные определения не обрезаются**, поскольку это разрушило бы сохранения. Поэтому объём метаданных не является строго фиксированным: при очень долгой ролевой он всё равно может увеличиваться, но больше не растёт на одну полную копию состояния после каждого сообщения.
 
-Disable/delete the folder and reload SillyTavern. Existing MAWS metadata stays in the chat unless you remove it separately. Reactivate the original Tavern Helper script only after disabling this extension.
+## Механика запросов
 
-## Files
+- Перед основной генерацией MAWS синхронизирует промпт **текущего чата** через `setExtensionPrompt()` и `generate_interceptor`. Модель может возвращать служебные метки `⟦MAWS_...⟧`; движок использует их как доказательства событий и скрывает в отображении MAWS.
+- Служебные запросы (анализ сцены, проверки целей, создание арок, сводки) идут через Connection Manager / выбранный профиль служебного ИИ, если он настроен. Вспомогательные ответы не создают реплики в основном RP-чате.
+- Для отдельных операций с лорбуком первоначальный движок использовал API Tavern Helper; такие действия без совместимого API могут оставаться недоступными. **Основное RP, задания, персональные промпты и переключатель от него не зависят.**
 
-- `manifest.json`: SillyTavern package descriptor.
-- `index.js`: wait-for-SillyTavern loader.
-- `engine.js`: original feature logic with targeted rendering/cache/event optimizations.
-- `style.css`: readability/accessibility finishing layer.
-- `tests/`: browser-independent smoke and structural tests.
+## Проверки
+
+```
+node tests/core.test.cjs
+node tests/notifications.test.cjs
+node tests/persistence.test.cjs
+python tests/browser_smoke.py
+python tests/native_smoke.py
+```
+
+Все пять локальных тестов прошли. Проверяются чистая миграция настроек, независимое ON/OFF для двух чатов, разные палитры и промпты, очистка промпта при выключении, архив, ограничение снимков, исторические поп-апы и отображение при прокрутке. Браузерные тесты используют **эмуляцию интерфейса**, а не твою реальную SillyTavern или модель; поэтому гарантировать совместимость со всеми её версиями и сторонними расширениями нельзя.
+
+## Файлы
+
+- `manifest.json` — регистрация расширения SillyTavern.
+- `index.js` — нативный переключатель для каждого чата, загрузка и остановка, синхронизация перед генерацией.
+- `engine.js` — механики оригинальной MAWS Universal Light, состояния, квесты, события, промпты и архив.
+- `style.css` — единый набор стилей.
+- `tests/` — локальные автоматические проверки.

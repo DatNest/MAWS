@@ -1,0 +1,37 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><style>
+body{margin:0;background:#202a35;color:#fff;font:14px/1.6 system-ui}
+#chat{height:560px;overflow:auto;border:1px solid #777;margin:10px auto;max-width:800px}
+.mes{min-height:120px;margin:10px;padding:7px;background:#263342;border:1px solid #445}
+.mes_text{max-width:100%}
+</style></head><body><div id="chat"></div><div id="send_form"><textarea id="send_textarea"></textarea></div>
+<script>
+const listeners=new Map();
+const eventTypes=Object.fromEntries(['CHAT_CHANGED','CHARACTER_MESSAGE_RENDERED','MESSAGE_EDITED','MESSAGE_UPDATED','MESSAGE_SWIPED','MESSAGE_DELETED','GENERATION_STARTED','GENERATION_ENDED','MESSAGE_SENT'].map(x=>[x,x]));
+const bus={on(k,fn){if(!listeners.has(k))listeners.set(k,new Set());listeners.get(k).add(fn)},removeListener(k,fn){listeners.get(k)?.delete(fn)},emit(k){for(const fn of listeners.get(k)||[])fn()}};
+let chat=[],chatMetadata={},chatName='chat-A',characterName='Кларк';
+function initChat(id,count){
+ chatName=id;chatMetadata={maws_engine_universal_v1:{version:43,enabled:true}};chat=[];
+ document.getElementById('chat').replaceChildren();
+ const fragment=document.createDocumentFragment();
+ for(let i=0;i<count;i++){
+  const isUser=i%2===0,mes=isUser?'Игрок: реплика номер '+i:'Кларк: ответ номер '+i;
+  chat.push({is_user:isUser,is_system:false,name:isUser?'Несс':characterName,mes,extra:{},swipe_id:0});
+  const shell=document.createElement('section');shell.className='mes';shell.setAttribute('mesid',String(i));
+  const text=document.createElement('div');text.className='mes_text';text.textContent=mes;shell.appendChild(text);fragment.appendChild(shell);
+ }
+ document.getElementById('chat').appendChild(fragment);
+ document.getElementById('chat').scrollTop=0;
+}
+initChat('chat-A',120);
+window.mockLogs={prompts:[],saves:0};
+window.SillyTavern={getContext(){return {
+  chat, chatMetadata, name1:'Несс', name2:characterName, characterId:0, groupId:null,
+  characters:[{name:characterName}], getCurrentChatId(){return chatName},
+  event_types:eventTypes,eventSource:bus,
+  setExtensionPrompt(...args){window.mockLogs.prompts.push([chatName,...args]);return Promise.resolve()},
+  saveMetadata(){window.mockLogs.saves++;return Promise.resolve()},
+}}};
+window.mockSwitch=(id)=>{characterName=id==='chat-B'?'Денджи':'Кларк';initChat(id,40);bus.emit('CHAT_CHANGED');};
+window.mockEdited=()=>{chat[chat.length-1].mes+=' после правки';document.querySelector('.mes[mesid="'+(chat.length-1)+'"] .mes_text').textContent=chat[chat.length-1].mes;bus.emit('MESSAGE_EDITED');};
+</script>
+<script type="module" src="../index.js"></script></body></html>
