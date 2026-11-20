@@ -1332,3 +1332,17 @@ to{opacity:1;transform:none}
 @media (prefers-reduced-motion: reduce) {
   #maws-native-settings * { transition: none !important; }
 }
+
+/* MAWS arc selection: compact, readable controls. */
+.mw-arc-worldbook {
+ display:grid;gap:9px;padding:12px;margin:10px 0;
+ border:1px solid var(--maws-color-1,#586b78);border-radius:9px;
+ background:var(--maws-color-0,#242c35);
+}
+.mw-arc-worldbook label{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;line-height:1.5}
+.mw-arc-worldbook select{min-width:170px;max-width:100%;flex:1}
+.mw-arc-worldbook small{font-size:11px;line-height:1.45;opacity:.85}
+#mw-skip-pop #mw-skip-arc-label{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px 0}
+#mw-skip-pop #mw-skip-arc-label[hidden],#mw-skip-pop #mw-skip-generate[hidden]{display:none!important}
+#mw-skip-pop #mw-skip-arc{margin-right:6px}
+#mw-skip-pop #mw-skip-next{font-size:11px;opacity:.85}
