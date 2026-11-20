@@ -2591,7 +2591,7 @@ function mawsNextStoryArc(c,v=getView(c)){
   const defs=(pack.quests||[]).filter(q=>q.episode&&q.arcs?.length).sort((a,b)=>a.episode.localeCompare(b.episode));
   for(let n=0;n<defs.length-1;n++){
    const from=defs[n],to=defs[n+1],previous=v.quests[from.id],future=v.quests[to.id];
-   if(previous?.status!=='completed'||!future||!['locked','queued'].includes(future.status))continue;
+   if(previous?.status!=='completed'||!future||!['locked','queued','paused'].includes(future.status))continue;
    if(defs.slice(n+1).some(d=>['active','completed'].includes(v.quests[d.id]?.status)))continue;
    return {from,to,arc:to.arcs[0].id};
   }
@@ -2688,10 +2688,21 @@ async function mawsArcTransition(){
  const send=doc.getElementById('send_but');
  if(!send||send.disabled){status.textContent='Кнопка отправки SillyTavern недоступна. Можно использовать обычный скип.';return;}
  if(read(c).arcWorldbookEnabled&&!read(c).arcWorldbookName){status.textContent='Сначала выбери лорбук арок в настройках сюжетов.';return;}
+ if(read(c).arcWorldbookEnabled){
+  try{
+   const get=mawsWorldApi('getWorldbook'),book=read(c).arcWorldbookName;
+   if(!get)throw Error('Нужен Tavern Helper Worldbook API.');
+   const items=await get(book);
+   if(!Array.isArray(items)||!items.some(e=>mawsArcMarker(e)?.id===next.to.id+':'+next.arc))throw Error('В выбранном лорбуке нет записей новой арки.');
+  }catch(err){status.textContent='Лорбук: '+String(err?.message||err);return;}
+ }
  submit.disabled=true;
  try{
   if(scope!==currentScope(ctx()))throw Error('Чат изменился.');
-  if(!append(c,{kind:'directStart',quest:next.to.id}))throw Error('Не получилось запустить эпизод.');
+  const nextStatus=getView(c).quests[next.to.id]?.status;
+  const startKind=nextStatus==='queued'?'queueStart':nextStatus==='paused'?'focus':'directStart';
+  if(!append(c,{kind:startKind,quest:next.to.id}))throw Error('Не получилось запустить эпизод.');
+  if(getView(c).quests[next.to.id]?.status!=='active')throw Error('Следующая арка не стала активной.');
   const anchor=lastAssistant(c.chat||[]);
   update(c,s=>{s.arcTransition={after:anchor,to:next.to.title,time,place,ji:ji.slice(0,2400)};});
   if(read(c).arcWorldbookEnabled)await mawsArcBookSync(c,true);
@@ -4187,7 +4198,7 @@ host.__MAWS_NATIVE_BRIDGE__={
   return true;
  }
 };
-host.__mawsUniversalCleanup=cleanup;host.__mawsAvatarCleanup=cleanup;window.addEventListener('pagehide',cleanup,{once:true});schedule();void promptSync();
+host.__mawsUniversalCleanup=cleanup;host.__mawsAvatarCleanup=cleanup;window.addEventListener('pagehide',cleanup,{once:true});schedule();void promptSync();if(mawsEnabled(ctx()))void mawsArcBookSync();
 })();
 
 
