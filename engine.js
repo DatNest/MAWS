@@ -1124,6 +1124,10 @@ function currentFocusPrompt(v,chat=[]){
  }
  const actors=[...v.people,...v.npcs].filter(p=>p.met&&!p.hidden).slice(0,12);
  if(actors.length)lines.push('При значимом изменении отношения к {{user}} добавь ⟦MAWS_SOCIAL:ID:+N⟧ или ⟦MAWS_SOCIAL:ID:-N⟧, N от 1 до 8. Без перемены метка не нужна. ID: '+actors.map(p=>p.id).join(', ')+'.');
+ const bridge=read(ctx()).arcTransition;
+ if(bridge&&Number.isInteger(bridge.after)&&lastAssistant(chat)<=bridge.after+1){
+  lines.push('ОТКРЫВАЮЩИЙ ПОСТ НОВОЙ АРКИ. Арка: '+bridge.to+'. Время: '+bridge.time+'. Место: '+bridge.place+'. События Джи, заданные игроком: '+(bridge.ji||'не указаны')+'. Кратко опиши, как прошло пропущенное время, какие установленные ранее события произошли в мире и как изменились окружающие персонажи, используя активный арочный лорбук и факты текущего чата. Приведи повествование к началу нового эпизода. Сохраняй уже сыгранные изменения отношений. Не добавляй решения, поступки и внутренние чувства {{user}} от себя.');
+ }
  const checks=questCheckPrompt(v);if(checks)lines.push(checks);
  return lines.join('\n');
 }
@@ -2965,6 +2969,7 @@ function watchCompletions(c,v){
   if(!displayed&&mawsShouldCelebrate(manual,completionAt,freshTurn)){
    completionCelebration(id);displayed=true;
   }
+  if(manual||(completionAt===freshTurn&&freshTurn!=null))mawsArcOffer(c,v,token);
  }
 }
 
@@ -3320,7 +3325,8 @@ function directorTab(v,s){
  return `<nav class="mw-dev-nav" role="tablist" aria-label="Разделы панели разработчика">${[['prompts','Промпты'],['stories','Сюжеты'],['theme','Оформление'],['auditor','Служебный ИИ'],['profile','Профиль'],['memory','Память и NPC']].map(([key,label])=>`<button type="button" role="tab" aria-selected="${ui.devTab===key}" data-action="devTab" data-dev-tab="${key}" class="mw-dev-tab ${ui.devTab===key?'mw-dev-tab-on':''}">${label}</button>`).join('')}</nav>
  <section class="mw-dev-window" data-dev-window="prompts" ${ui.devTab==="prompts"?"":"hidden"}><div class="mw-dev-window-title">01 · Промпты движка</div><div class="mw-dev-inner">${promptEditor(s)}</div></section>
  <section class="mw-dev-window" data-dev-window="stories" ${ui.devTab==="stories"?"":"hidden"}><div class="mw-dev-window-title">02 · Мануальная режиссура</div><div class="mw-dev-inner"><p class="mw-dev-note">Сюжеты отдельно от движка. Удаление из библиотеки не стирает уже сыгранные итоги; активный сценарий остаётся доступным до завершения.</p><div class="mw-choice"><button data-action="packImport">＋ Добавить сюжетный пакет</button><button data-action="storyExportAll">↓ Экспорт библиотеки</button></div>
- ${Object.values(s.packs||{}).map(p=>`<div class="mw-pack-installed">${esc(p.title)} · v${esc(p.version)} · ${p.quests.length} заданий <button data-action="packExport" data-pack="${esc(p.id)}">Экспорт</button><button data-action="packReplace" data-pack="${esc(p.id)}">Заменить</button><button data-action="packRemove" data-pack="${esc(p.id)}">Удалить</button></div>`).join('')||'<small>Пакетов пока нет</small>'}
+ <div class="mw-arc-worldbook"><label><input type="checkbox" data-action="arcWorldbookEnabled" ${s.arcWorldbookEnabled?'checked':''}> Включать записи лорбука по текущей сюжетной арке</label><label>Арочный лорбук <select data-action="arcWorldbookBook"><option value="">— Выбери —</option>${mawsWorldbooks.map(name=>'<option value="'+esc(name)+'" '+(s.arcWorldbookName===name?'selected':'')+'>'+esc(name)+'</option>').join('')}</select></label><button type="button" data-action="worldbooksRefresh">↻ Обновить список</button><small>Управляются только записи [MAWS_SHARED] и [MAWS_ARC:ID:arc].</small></div>
+  ${Object.values(s.packs||{}).map(p=>`<div class="mw-pack-installed">${esc(p.title)} · v${esc(p.version)} · ${p.quests.length} заданий <button data-action="packExport" data-pack="${esc(p.id)}">Экспорт</button><button data-action="packReplace" data-pack="${esc(p.id)}">Заменить</button><button data-action="packRemove" data-pack="${esc(p.id)}">Удалить</button></div>`).join('')||'<small>Пакетов пока нет</small>'}
  <div class="mw-manual-list">${allStories.map(([id,d])=>`<div class="mw-manual-row"><span>${esc(d.title)} <small>${esc(id)}</small></span><div><button data-action="storyEdit" data-quest="${esc(id)}">Правка</button><button data-action="storyExport" data-quest="${esc(id)}">Экспорт</button><button data-action="storyRemove" data-quest="${esc(id)}">Убрать</button></div></div>`).join('')}</div>${edit||''}</div></section>
  <section class="mw-dev-window" data-dev-window="theme" ${ui.devTab==="theme"?"":"hidden"}><div class="mw-dev-window-title">03 · Оформление и поведение</div><div class="mw-dev-inner"><small>Настройки сохраняются в текущем чате. Цвета можно выбрать через системную палитру, а в поддерживаемых браузерах — пипеткой.</small><div class="mw-timeline-tools"><b>📖 Снимки по сообщениям</b><small>Для каждого нового ответа отдельно закрепляются квесты, отношения, NPC и сцена. Прошлые ответы сохраняют свой прогресс. Дата относится к сюжету, а не к реальному календарю.</small><label><input type="checkbox" data-action="romanceTracking" ${s.romanceTracking!==false?'checked':''}> Отслеживать романтические отношения (отключить при использовании LoveScore)</label><label><input type="checkbox" data-action="sceneAuto" ${s.sceneAuto!==false?'checked':''}> Автоучёт сцены, NPC и отношений после ответа</label><label class="mw-social-influence-setting">Влияние отношений на поведение <select data-action="socialInfluence" aria-label="Выраженность социальных реакций"><option value="soft" ${s.socialInfluence==='soft'?'selected':''}>Мягкое</option><option value="moderate" ${s.socialInfluence==='moderate'?'selected':''}>Умеренное</option><option value="expressive" ${s.socialInfluence==='expressive'?'selected':''}>Выраженное</option></select><small>Учитываются шкала и свободный статус; подсказки получает только актуальный состав сцены и закадрового сюжета. Без отдельных ИИ-вызовов.</small></label></div>
  <div class="mw-theme-grid">${Object.entries(THEME_FIELDS).map(([id,[label]])=>`<label><span>${esc(label)}</span><input type="color" data-action="themeColor" data-theme="${id}" value="${theme[id]}"><button type="button" data-action="eyedropper" data-theme="${id}" title="Пипетка">◉</button></label>`).join('')}</div>
@@ -3627,7 +3633,7 @@ function skipWidget(){
  if(!doc.getElementById('mw-skip-pop')){
   const pop=doc.createElement('div');pop.id='mw-skip-pop';pop.className='mw-popup';pop.hidden=true;
   pop.setAttribute('role','dialog');pop.setAttribute('aria-label','Переход к сцене');
-  pop.innerHTML=`<section class="mw-popup-panel mw-skip-panel"><strong>Переход к сцене</strong><p>Предложи события пропущенного времени или запиши их сама. Проверь текст перед вставкой в пост.</p><label>Время<input id="mw-skip-time" placeholder="Следующее утро, 09:00" value="Следующее утро, 09:00"></label><label>Место<input id="mw-skip-place" placeholder="Например: двор у чайной"></label><label>Что случилось за это время<textarea id="mw-skip-draft" rows="7" placeholder="События можно написать вручную"></textarea></label><p id="mw-skip-status" role="status"></p><div class="mw-formactions"><button type="button" id="mw-skip-generate">Предложить / заново</button><button type="button" id="mw-skip-insert">ОК — вставить в пост</button><button type="button" id="mw-skip-close">Отмена</button></div></section>`;
+  pop.innerHTML=`<section class="mw-popup-panel mw-skip-panel"><strong id="mw-skip-title">Переход к сцене</strong><p id="mw-skip-help">Предложи события пропущенного времени или запиши их сама.</p><label id="mw-skip-arc-label" hidden><input id="mw-skip-arc" type="checkbox"> Перейти к следующей сюжетной арке <small id="mw-skip-next"></small></label><label>Время<input id="mw-skip-time" placeholder="Следующее утро, 09:00" value="Следующее утро, 09:00"></label><label>Место<input id="mw-skip-place" placeholder="Например: двор у чайной"></label><label><span id="mw-skip-note">Что случилось за это время</span><textarea id="mw-skip-draft" rows="7" placeholder="События можно написать вручную"></textarea></label><p id="mw-skip-status" role="status"></p><div class="mw-formactions"><button type="button" id="mw-skip-generate">Предложить / заново</button><button type="button" id="mw-skip-insert">ОК — вставить в пост</button><button type="button" id="mw-skip-close">Отмена</button></div></section>`;
   doc.body.appendChild(pop);
   for(const field of pop.querySelectorAll('input,textarea'))field.addEventListener('input',invalidateSkip);
  }
@@ -3695,7 +3701,7 @@ for(const el of eligible){const id=Number(el.getAttribute('mesid'));if(!Number.i
  watchCompletions(c,getView(c));if(last>=0&&mawsAllowsSilentSceneScan(freshTurnPairs.get(scope),scenePairSig(chat,last))&&!generationRunning&&!sceneBusy&&!sceneQueued&&s.sceneAuto!==false&&mawsServiceProfile(s)&&!(timelineRecord(c,s,last)?.sceneScanned&&timelineRecord(c,s,last)?.sceneReceiptVersion===SCENE_RECEIPT_VERSION&&timelineRecord(c,s,last)?.scenePairSig===scenePairSig(chat,last)))void queueSceneScan(false);
 }catch(err){mwLastRenderError=String(err?.stack||err).slice(0,900);mwDebugRecord('render-error',mwLastRenderError);console.error('[MAWS] render',err);}finally{observer.takeRecords();busy=false;}}
 function schedule(){if(!stopped&&frame===null)frame=host.requestAnimationFrame(render);}
-function redraw(){schedule();void promptSync();}
+function redraw(){schedule();void promptSync();if(!stopped&&mawsEnabled(ctx()))void mawsArcBookSync();}
 function markSeen(c,keys){const v=getView(c);const hashes=getHashes(v);update(c,s=>{for(const k of keys)s.seen[k]=hashes[k];});}
 function saveJson(name,data){const blob=new host.Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});const url=host.URL.createObjectURL(blob);const link=doc.createElement('a');link.href=url;link.download=name;doc.body.appendChild(link);link.click();link.remove();host.setTimeout(()=>host.URL.revokeObjectURL(url),1000);}
 function readJsonFile(action,max=15000000){return new Promise(resolve=>{const pick=doc.createElement('input');pick.type='file';pick.accept='.json,application/json';pick.addEventListener('change',async()=>{const f=pick.files?.[0];if(!f){resolve(null);return;}try{if(f.size>max)throw Error('Файл превышает допустимый размер');resolve(JSON.parse(await f.text()));}catch(e){host.alert('Не удалось прочитать JSON: '+e.message);resolve(null);}},{once:true});pick.click();});}
@@ -3719,10 +3725,10 @@ function removePack(packId,c,v){update(c,x=>{const pack=x.packs[packId];if(!pack
 
 async function click(e){const skip=e.target.closest?.('#mw-skip-btn,#mw-skip-pop button');if(skip){
  const pop=doc.getElementById('mw-skip-pop');if(!pop)return;
- if(skip.id==='mw-skip-btn'){invalidateSkip();pop.hidden=!pop.hidden;}
+ if(skip.id==='mw-skip-btn'){invalidateSkip();mawsPrepareArcSkip(false);pop.hidden=!pop.hidden;}
  else if(skip.id==='mw-skip-close'){invalidateSkip();pop.hidden=true;}
  else if(skip.id==='mw-skip-generate')void generateSkipDraft();
- else if(skip.id==='mw-skip-insert')insertSkipDraft();
+ else if(skip.id==='mw-skip-insert'){if(pop.querySelector('#mw-skip-arc')?.checked)void mawsArcTransition();else insertSkipDraft();}
  return;
  }
  const skipPop=doc.getElementById('mw-skip-pop');
@@ -3942,11 +3948,11 @@ async function click(e){const skip=e.target.closest?.('#mw-skip-btn,#mw-skip-pop
  if(a==='delNpc'&&host.confirm('Убрать карточку? Она не появится снова до ручного восстановления.'))append(c,{kind:'npcHide',person:b.dataset.person});
  if(a==='pin'||a==='unpin'){ui.memoryScrollReset=true;append(c,{kind:a==='pin'?'memoryPin':'memoryUnpin',id:b.dataset.memory});}
  redraw();}
-function change(e){if(e.target.matches?.('#mw-source-dialog [data-source-id]')){summarySourcesCount();return;}if(!isMaws(ctx()))return;const t=e.target;if(t.dataset.action==='speakerColor'){
+function change(e){if(e.target?.id==='mw-skip-arc'){mawsArcSkipMode();return;}if(e.target.matches?.('#mw-source-dialog [data-source-id]')){summarySourcesCount();return;}if(!isMaws(ctx()))return;const t=e.target;if(t.dataset.action==='speakerColor'){
  if(/^#[0-9a-f]{6}$/i.test(t.value)){
   update(ctx(),x=>{let item=(x.speakerStyles||[]).find(y=>y.id===t.dataset.speaker);if(!item&&DIALOGUE_SPEAKERS.has(t.dataset.speaker)){item={id:t.dataset.speaker,name:SPEAKER_CATALOG.find(y=>y.id===t.dataset.speaker).name,color:t.value};x.speakerStyles.push(item);}else if(item)item.color=t.value;});redraw();
  }return;
- }if(t.dataset.action==='auditorProfile'){update(ctx(),x=>x.auditorProfileId=t.value);redraw();return;}if(t.dataset.action==='socialInfluence'){if(SOCIAL_INFLUENCE_MODES.includes(t.value)){update(ctx(),x=>x.socialInfluence=t.value);redraw();}return;}if(t.dataset.action==='romanceTracking'){update(ctx(),x=>x.romanceTracking=!!t.checked);redraw();return;}if(t.dataset.action==='questMemoryEnabled'){const now=ctx(),on=!!t.checked;update(now,x=>x.questMemoryEnabled=on);void mawsToggleWorldMemory(now,on).catch(e=>host.alert('Режим изменён, но не удалось переключить старые записи лорбука: '+String(e.message||e)));if(on)void mawsLoadWorldbooks().catch(e=>host.alert(String(e.message||e)));redraw();return;}if(t.dataset.action==='questMemoryBook'){update(ctx(),x=>x.questMemoryBook=t.value);redraw();return;}if(t.dataset.action==='sceneAuto'){update(ctx(),x=>x.sceneAuto=!!t.checked);return;}if(t.dataset.action==='themeColor'){if(THEME_FIELDS[t.dataset.theme]&&/^#[0-9a-f]{6}$/i.test(t.value)){update(ctx(),x=>x.theme[t.dataset.theme]=t.value);applyTheme(read(ctx()).theme);}return;}if(t.dataset.action==='themeFont'){if(Object.hasOwn(THEME_FONTS,t.value)){update(ctx(),x=>x.theme.font=t.value);applyTheme(read(ctx()).theme);}return;}if(t.dataset.action==='archiveSort'){update(ctx(),x=>x.archiveSort=t.value);ui.archiveLimit=30;redraw();return;}if(t.dataset.action==='archiveSearch'){ui.archiveQuery=t.value;ui.archiveLimit=30;redraw();return;}if(t.matches('input[data-arc-goal="1"]')){const c=ctx(),chat=c.chat||[],msg=Number(t.closest('.mes[mesid]')?.getAttribute('mesid'));
+ }if(t.dataset.action==='arcWorldbookEnabled'){update(ctx(),s=>s.arcWorldbookEnabled=!!t.checked);mawsArcBookCache='';void mawsArcBookSync(ctx(),true).catch(err=>host.alert('Синхронизация арок: '+String(err?.message||err)));redraw();return;}if(t.dataset.action==='arcWorldbookBook'){void mawsSetArcBook(t.value).catch(err=>host.alert('Лорбук арок: '+String(err?.message||err)));redraw();return;}if(t.dataset.action==='auditorProfile'){update(ctx(),x=>x.auditorProfileId=t.value);redraw();return;}if(t.dataset.action==='socialInfluence'){if(SOCIAL_INFLUENCE_MODES.includes(t.value)){update(ctx(),x=>x.socialInfluence=t.value);redraw();}return;}if(t.dataset.action==='romanceTracking'){update(ctx(),x=>x.romanceTracking=!!t.checked);redraw();return;}if(t.dataset.action==='questMemoryEnabled'){const now=ctx(),on=!!t.checked;update(now,x=>x.questMemoryEnabled=on);void mawsToggleWorldMemory(now,on).catch(e=>host.alert('Режим изменён, но не удалось переключить старые записи лорбука: '+String(e.message||e)));if(on)void mawsLoadWorldbooks().catch(e=>host.alert(String(e.message||e)));redraw();return;}if(t.dataset.action==='questMemoryBook'){update(ctx(),x=>x.questMemoryBook=t.value);redraw();return;}if(t.dataset.action==='sceneAuto'){update(ctx(),x=>x.sceneAuto=!!t.checked);return;}if(t.dataset.action==='themeColor'){if(THEME_FIELDS[t.dataset.theme]&&/^#[0-9a-f]{6}$/i.test(t.value)){update(ctx(),x=>x.theme[t.dataset.theme]=t.value);applyTheme(read(ctx()).theme);}return;}if(t.dataset.action==='themeFont'){if(Object.hasOwn(THEME_FONTS,t.value)){update(ctx(),x=>x.theme.font=t.value);applyTheme(read(ctx()).theme);}return;}if(t.dataset.action==='archiveSort'){update(ctx(),x=>x.archiveSort=t.value);ui.archiveLimit=30;redraw();return;}if(t.dataset.action==='archiveSearch'){ui.archiveQuery=t.value;ui.archiveLimit=30;redraw();return;}if(t.matches('input[data-arc-goal="1"]')){const c=ctx(),chat=c.chat||[],msg=Number(t.closest('.mes[mesid]')?.getAttribute('mesid'));
   if(msg!==lastAssistant(chat)){redraw();return;}
   const v=getView(c),q=v.quests[t.dataset.quest],a=q?.arcs?.find(a=>a.id===t.dataset.arc),g=a?.goals?.find(g=>g.id===t.dataset.goal);
   if(!g||q.status!=='active'||g.status==='obsolete'){redraw();return;}
@@ -4114,6 +4120,12 @@ const initial=ctx();for(const name of ['CHAT_CHANGED','CHARACTER_MESSAGE_RENDERE
     freshCompletionTurns.set(scope,last);
    }
   }catch(e){mwDebugRecord('generation-end',String(e?.message||e));}
+  try{
+   const latestContext=ctx(),bridge=read(latestContext).arcTransition,now=lastAssistant(latestContext.chat||[]);
+   if(bridge&&Number.isInteger(bridge.after)&&now>bridge.after&&currentScope(latestContext)===generatingAt?.scope){
+    update(latestContext,s=>s.arcTransition=null);
+   }
+  }catch(err){mwDebugRecord('arc-transition-clear',String(err?.message||err));}
   generatingAt=null;
  }
  if(name==='CHAT_CHANGED'){generationRunning=false;generatingAt=null;}
@@ -4123,7 +4135,7 @@ const initial=ctx();for(const name of ['CHAT_CHANGED','CHARACTER_MESSAGE_RENDERE
  if(['CHAT_CHANGED','MESSAGE_SENT','MESSAGE_SWIPED','MESSAGE_EDITED','MESSAGE_DELETED','MESSAGE_UPDATED','GENERATION_ENDED','CHARACTER_MESSAGE_RENDERED'].includes(name)){
   mawsChatRevision++;readMemo=null;
  }
- if(name==='CHAT_CHANGED'){chatEpoch++;chatScrollPending=true;closePopupWindows();renderedScope='';freshTurnPairs.clear();freshCompletionTurns.clear();manualCompletionIds.clear();}
+ if(name==='CHAT_CHANGED'){mawsArcBookCache='';chatEpoch++;chatScrollPending=true;closePopupWindows();renderedScope='';freshTurnPairs.clear();freshCompletionTurns.clear();manualCompletionIds.clear();}
  if(['CHAT_CHANGED','MESSAGE_SENT','MESSAGE_SWIPED','MESSAGE_EDITED','MESSAGE_DELETED'].includes(name)){resetWorkflows();closeSideChooser();}
  redraw();
  if(mawsEnabled(ctx())&&['GENERATION_ENDED','CHAT_CHANGED','MESSAGE_SWIPED','MESSAGE_EDITED'].includes(name))void queueSceneScan(false);
