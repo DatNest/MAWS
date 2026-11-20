@@ -2573,7 +2573,7 @@ let arcBookChain=Promise.resolve(),arcBookLast='',arcBookRequested='',arcBookSyn
 function arcBookTag(e){
  const name=String(e?.name||e?.comment||'')+' '+String(e?.comment||'');
  if(/\bMAWS_SHARED\b/.test(name))return 'shared';
- const hit=name.match(/MAWS_ARC:(P_[A-Z0-9_]+):([a-z][a-z0-9_]*)/);
+ const hit=name.match(/MAWS_ARC:([A-Z][A-Z0-9_]{2,70}):([a-z][a-z0-9_]*)/);
  return hit?hit[1]+':'+hit[2]:'';
 }
 function arcBookActive(c){
