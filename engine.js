@@ -2571,7 +2571,7 @@ const summaryScope=()=>currentScope(ctx());
 function mawsWorldApi(name){return (typeof window[name]==='function'&&window[name].bind(window))||(typeof window.TavernHelper?.[name]==='function'&&window.TavernHelper[name].bind(window.TavernHelper))||(typeof host?.[name]==='function'&&host[name].bind(host))||null;}
 
 /* Arc-aware lorebook controller; manages only named MAWS entries. */
-let mawsArcBookJob=Promise.resolve(),mawsArcBookCache='';
+let mawsArcBookJob=Promise.resolve(),mawsArcBookCache='',mawsArcBookPending='';
 const mawsArcPopupSeen=new Set();
 function mawsArcMarker(e){
  const name=String(e?.name||'');
@@ -2603,7 +2603,8 @@ function mawsArcBookSync(c=ctx(),force=false){
  if(!book)return Promise.resolve();
  const scope=currentScope(c),selection=state.arcWorldbookEnabled?mawsCurrentArc(c):'';
  const fingerprint=[scope,book,state.arcWorldbookEnabled,selection].join('|');
- if(!force&&fingerprint===mawsArcBookCache)return mawsArcBookJob;
+ if(!force&&(fingerprint===mawsArcBookCache||fingerprint===mawsArcBookPending))return mawsArcBookJob;
+ mawsArcBookPending=fingerprint;
  mawsArcBookJob=mawsArcBookJob.catch(()=>{}).then(async()=>{
   if(stopped||scope!==currentScope(ctx()))return;
   const get=mawsWorldApi('getWorldbook'),modify=mawsWorldApi('updateWorldbookWith');
@@ -2627,7 +2628,7 @@ function mawsArcBookSync(c=ctx(),force=false){
   if(stopped||scope!==currentScope(ctx()))return;
   mawsArcBookCache=fingerprint;
   if(selection&&selection!==read(ctx()).arcSelected)update(ctx(),s=>s.arcSelected=selection);
- }).catch(err=>{mawsArcBookCache='';mwDebugRecord('arc-lorebook-sync',String(err?.message||err));if(force)throw err;});
+ }).catch(err=>{mawsArcBookCache='';mwDebugRecord('arc-lorebook-sync',String(err?.message||err));if(force)throw err;}).finally(()=>{if(mawsArcBookPending===fingerprint)mawsArcBookPending='';});
  return mawsArcBookJob;
 }
 async function mawsSetArcBook(name){
