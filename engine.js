@@ -2608,6 +2608,14 @@ function arcBookSync(c,force=false){
  arcBookChain=running.catch(err=>{arcBookError=String(err?.message||err);throw err;});
  return arcBookChain;
 }
+
+async function arcBookDisableOnExit(){
+ const book=arcBookLast,modify=mawsWorldApi('updateWorldbookWith');
+ if(!book||!modify)return;
+ await arcBookChain.catch(()=>{});
+ await modify(book,entries=>entries.map(e=>arcBookTag(e)?{...e,enabled:false}:e));
+ arcBookLast='';arcBookRequested='';arcBookSynced='';
+}
 function arcBookBackground(){
  const c=ctx(),s=read(c);
  if(!s.arcWorldbookEnabled&&!arcBookLast)return;
@@ -4122,7 +4130,7 @@ function cleanup(){
  // before removing this extension's prompt, avoiding zombie injections.
  const finishingPrompt=promptWriting;
  for(const el of doc.querySelectorAll('#chat [data-mw-scene-break]'))el.replaceWith(doc.createTextNode(el.dataset.mwSceneBreak));
- window.removeEventListener('pagehide',cleanup);resetWorkflows();observer.disconnect();mawsObservedRoot?.removeEventListener('scroll',mawsOnScroll);if(mawsScrollTimer!==null)host.clearTimeout(mawsScrollTimer);for(const t of mawsHudRepairTimers)host.clearTimeout(t);mawsHudRepairTimers.clear();doc.removeEventListener('change',mawsOnHudToggle,true);doc.removeEventListener('click',mawsOnHudOpenClick,true);doc.removeEventListener('keydown',sideChooserKeys,true);for(const [ev,fn] of [['click',click],['change',change],['submit',submit],['input',input],['toggle',toggle]])doc.removeEventListener(ev,fn,true);if(frame!==null)host.cancelAnimationFrame(frame);stopPopupViewport();for(const [bus,ev,fn] of subs)try{bus.removeListener?.(ev,fn);}catch(_e){}closeSideChooser();closePopupWindows();doc.getElementById(THEME_STYLE_ID)?.remove();doc.querySelectorAll('.mw-panel,.mw-offer-slot,#mw-skip-box,#mw-skip-pop').forEach(el=>el.remove());const clear=async()=>{try{await finishingPrompt;}catch(_e){}
+ window.removeEventListener('pagehide',cleanup);resetWorkflows();observer.disconnect();mawsObservedRoot?.removeEventListener('scroll',mawsOnScroll);if(mawsScrollTimer!==null)host.clearTimeout(mawsScrollTimer);for(const t of mawsHudRepairTimers)host.clearTimeout(t);mawsHudRepairTimers.clear();doc.removeEventListener('change',mawsOnHudToggle,true);doc.removeEventListener('click',mawsOnHudOpenClick,true);doc.removeEventListener('keydown',sideChooserKeys,true);for(const [ev,fn] of [['click',click],['change',change],['submit',submit],['input',input],['toggle',toggle]])doc.removeEventListener(ev,fn,true);if(frame!==null)host.cancelAnimationFrame(frame);stopPopupViewport();for(const [bus,ev,fn] of subs)try{bus.removeListener?.(ev,fn);}catch(_e){}closeSideChooser();closePopupWindows();doc.getElementById(THEME_STYLE_ID)?.remove();doc.querySelectorAll('.mw-panel,.mw-offer-slot,#mw-skip-box,#mw-skip-pop').forEach(el=>el.remove());const clear=async()=>{try{await arcBookDisableOnExit();}catch(err){mwDebugRecord('arc-book-cleanup',String(err?.message||err));}try{await finishingPrompt;}catch(_e){}
   try{await ctx().setExtensionPrompt?.(PROMPT_ID,'',-1,0,false,0);}catch(_e){}
  };
  if(host.__MAWS_NATIVE_BRIDGE__?.engineInstance===engineInstance)delete host.__MAWS_NATIVE_BRIDGE__;
