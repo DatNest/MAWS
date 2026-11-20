@@ -1,7 +1,7 @@
 /* MAWS Quest Engine — Universal */
 (function(){
 'use strict';
-const VERSION=43, KEY='maws_engine_universal_v1', LEGACY_KEYS=['maws_engine_avatar_v1'], PROMPT_ID='MAWS_UNIVERSAL_DIRECTOR';
+const VERSION=44, KEY='maws_engine_universal_v1', LEGACY_KEYS=['maws_engine_avatar_v1'], PROMPT_ID='MAWS_UNIVERSAL_DIRECTOR';
 const MAX_TIMELINE_SNAPSHOTS=32;
 // A clean installation has no built-in cast. Existing profiles keep their own
 // characters through the snapshot migration below.
@@ -186,8 +186,8 @@ function lastAssistant(chat){
  Object.assign(lastAssistantMemo,{chat,length:chat.length,tail,revision:mawsChatRevision,id});
  return id;
 }
-function defaultState(){return {enabled:false,questAnchors:{},questArchive:{},auditorProfileId:"",romanceTracking:true,socialInfluence:'moderate',version:VERSION,promptOverrides:{},questDates:{},offers:[],ledger:[],serial:0,tab:'scene',seen:{},expandedHistory:null,openArchive:false,questSection:'active',lastAuditReport:null,openMain:true,openNpcs:false,peopleSection:'main',npcFilter:'Все',questGenre:'Все',questBuddies:[],archiveQuery:'',archiveSort:'chronology',generated:{},questOverrides:{},detachedDefs:{},retiredIds:[],suppressed:[],romanceChoices:[],directorOpen:false,inspected:null,packs:{},theme:{},snapshot:null,profileHistory:[],timeline:{},sceneAuto:true,questSummaries:{},questMemoryEnabled:false,questMemoryBook:'',questMemoryRefs:{},secretReveals:{},questCalls:0,questProposalHistory:[],skippedAuthoredSides:[],avatarOverrides:{},speakerStyles:[],speakerBookRef:null};}
-function normalize(raw){if(!raw||![11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43].includes(raw.version))return defaultState();const {summaryProfileId,sideProfileId,relationshipScoreSeen,...current}=raw;const speakerBookRef=raw.speakerBookRef&&typeof raw.speakerBookRef==='object'&&typeof raw.speakerBookRef.book==='string'&&typeof raw.speakerBookRef.name==='string'?{book:raw.speakerBookRef.book.slice(0,180),name:raw.speakerBookRef.name.slice(0,180),uid:raw.speakerBookRef.uid??null,contentHash:typeof raw.speakerBookRef.contentHash==='string'?raw.speakerBookRef.contentHash:''}:null;return {...defaultState(),...current,enabled:raw.enabled===true,questAnchors:raw.questAnchors&&typeof raw.questAnchors==='object'&&!Array.isArray(raw.questAnchors)?raw.questAnchors:{},questArchive:raw.questArchive&&typeof raw.questArchive==='object'&&!Array.isArray(raw.questArchive)?raw.questArchive:{},openMain:raw.openMain!==false,questSection:['active','queued','archive'].includes(raw.questSection)?raw.questSection:(raw.openArchive?'archive':'active'),lastAuditReport:raw.lastAuditReport&&typeof raw.lastAuditReport==='object'?raw.lastAuditReport:null,version:VERSION,promptOverrides:raw.promptOverrides&&typeof raw.promptOverrides==='object'&&!Array.isArray(raw.promptOverrides)?Object.fromEntries(Object.entries(raw.promptOverrides).filter(([k,v])=>typeof k==='string'&&typeof v==='string'&&v.length<=24000)): {},seen:raw.seen||{},offers:Array.isArray(raw.offers)?raw.offers:[],ledger:Array.isArray(raw.ledger)?raw.ledger:[],generated:raw.generated||{},suppressed:raw.suppressed||[],romanceChoices:raw.romanceChoices||[],packs:raw.packs||{},questBuddies:Array.isArray(raw.questBuddies)?raw.questBuddies:(raw.questBuddy&&raw.questBuddy!=='Все'?[raw.questBuddy]:[]),questOverrides:raw.questOverrides||{},detachedDefs:raw.detachedDefs||{},retiredIds:raw.retiredIds||[],theme:raw.theme||{},snapshot:raw.snapshot||null,profileHistory:raw.profileHistory||[],timeline:raw.timeline&&typeof raw.timeline==='object'&&!Array.isArray(raw.timeline)?raw.timeline:{},questSummaries:raw.questSummaries&&typeof raw.questSummaries==='object'?raw.questSummaries:{},questMemoryEnabled:raw.questMemoryEnabled===true,questMemoryBook:typeof raw.questMemoryBook==='string'?raw.questMemoryBook:'',questMemoryRefs:raw.questMemoryRefs&&typeof raw.questMemoryRefs==='object'?raw.questMemoryRefs:{},questDates:raw.questDates&&typeof raw.questDates==='object'&&!Array.isArray(raw.questDates)?raw.questDates:{},sceneAuto:raw.sceneAuto!==false,auditorProfileId:[raw.auditorProfileId,summaryProfileId,sideProfileId].find(x=>typeof x==='string'&&x.trim()&&!x.startsWith('@'))||'',romanceTracking:raw.romanceTracking!==false,socialInfluence:['soft','moderate','expressive'].includes(raw.socialInfluence)?raw.socialInfluence:'moderate',secretReveals:raw.secretReveals&&typeof raw.secretReveals==='object'?raw.secretReveals:{},questCalls:Number(raw.questCalls)||0,questProposalHistory:Array.isArray(raw.questProposalHistory)?raw.questProposalHistory:[],skippedAuthoredSides:Array.isArray(raw.skippedAuthoredSides)?raw.skippedAuthoredSides.filter(x=>typeof x==="string"):[],peopleSection:['main','npcs'].includes(raw.peopleSection)?raw.peopleSection:'main',avatarOverrides:raw.avatarOverrides&&typeof raw.avatarOverrides==='object'&&!Array.isArray(raw.avatarOverrides)?raw.avatarOverrides:{},speakerStyles:normalizeSpeakerStyles(raw.speakerStyles),speakerBookRef};}
+function defaultState(){return {enabled:false,questAnchors:{},questArchive:{},auditorProfileId:"",romanceTracking:true,socialInfluence:'moderate',version:VERSION,promptOverrides:{},questDates:{},offers:[],ledger:[],serial:0,tab:'scene',seen:{},expandedHistory:null,openArchive:false,questSection:'active',lastAuditReport:null,openMain:true,openNpcs:false,peopleSection:'main',npcFilter:'Все',questGenre:'Все',questBuddies:[],archiveQuery:'',archiveSort:'chronology',generated:{},questOverrides:{},detachedDefs:{},retiredIds:[],suppressed:[],romanceChoices:[],directorOpen:false,inspected:null,packs:{},theme:{},snapshot:null,profileHistory:[],timeline:{},sceneAuto:true,questSummaries:{},questMemoryEnabled:false,questMemoryBook:'',questMemoryRefs:{},arcWorldbookEnabled:false,arcWorldbookName:'',arcSelected:'',arcTransition:null,secretReveals:{},questCalls:0,questProposalHistory:[],skippedAuthoredSides:[],avatarOverrides:{},speakerStyles:[],speakerBookRef:null};}
+function normalize(raw){if(!raw||![11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44].includes(raw.version))return defaultState();const {summaryProfileId,sideProfileId,relationshipScoreSeen,...current}=raw;const speakerBookRef=raw.speakerBookRef&&typeof raw.speakerBookRef==='object'&&typeof raw.speakerBookRef.book==='string'&&typeof raw.speakerBookRef.name==='string'?{book:raw.speakerBookRef.book.slice(0,180),name:raw.speakerBookRef.name.slice(0,180),uid:raw.speakerBookRef.uid??null,contentHash:typeof raw.speakerBookRef.contentHash==='string'?raw.speakerBookRef.contentHash:''}:null;return {...defaultState(),...current,enabled:raw.enabled===true,questAnchors:raw.questAnchors&&typeof raw.questAnchors==='object'&&!Array.isArray(raw.questAnchors)?raw.questAnchors:{},questArchive:raw.questArchive&&typeof raw.questArchive==='object'&&!Array.isArray(raw.questArchive)?raw.questArchive:{},openMain:raw.openMain!==false,questSection:['active','queued','archive'].includes(raw.questSection)?raw.questSection:(raw.openArchive?'archive':'active'),lastAuditReport:raw.lastAuditReport&&typeof raw.lastAuditReport==='object'?raw.lastAuditReport:null,version:VERSION,promptOverrides:raw.promptOverrides&&typeof raw.promptOverrides==='object'&&!Array.isArray(raw.promptOverrides)?Object.fromEntries(Object.entries(raw.promptOverrides).filter(([k,v])=>typeof k==='string'&&typeof v==='string'&&v.length<=24000)): {},seen:raw.seen||{},offers:Array.isArray(raw.offers)?raw.offers:[],ledger:Array.isArray(raw.ledger)?raw.ledger:[],generated:raw.generated||{},suppressed:raw.suppressed||[],romanceChoices:raw.romanceChoices||[],packs:raw.packs||{},questBuddies:Array.isArray(raw.questBuddies)?raw.questBuddies:(raw.questBuddy&&raw.questBuddy!=='Все'?[raw.questBuddy]:[]),questOverrides:raw.questOverrides||{},detachedDefs:raw.detachedDefs||{},retiredIds:raw.retiredIds||[],theme:raw.theme||{},snapshot:raw.snapshot||null,profileHistory:raw.profileHistory||[],timeline:raw.timeline&&typeof raw.timeline==='object'&&!Array.isArray(raw.timeline)?raw.timeline:{},questSummaries:raw.questSummaries&&typeof raw.questSummaries==='object'?raw.questSummaries:{},questMemoryEnabled:raw.questMemoryEnabled===true,questMemoryBook:typeof raw.questMemoryBook==='string'?raw.questMemoryBook:'',questMemoryRefs:raw.questMemoryRefs&&typeof raw.questMemoryRefs==='object'?raw.questMemoryRefs:{},arcWorldbookEnabled:raw.arcWorldbookEnabled===true,arcWorldbookName:typeof raw.arcWorldbookName==='string'?raw.arcWorldbookName:'',arcSelected:typeof raw.arcSelected==='string'?raw.arcSelected:'',arcTransition:raw.arcTransition&&typeof raw.arcTransition==='object'?raw.arcTransition:null,questDates:raw.questDates&&typeof raw.questDates==='object'&&!Array.isArray(raw.questDates)?raw.questDates:{},sceneAuto:raw.sceneAuto!==false,auditorProfileId:[raw.auditorProfileId,summaryProfileId,sideProfileId].find(x=>typeof x==='string'&&x.trim()&&!x.startsWith('@'))||'',romanceTracking:raw.romanceTracking!==false,socialInfluence:['soft','moderate','expressive'].includes(raw.socialInfluence)?raw.socialInfluence:'moderate',secretReveals:raw.secretReveals&&typeof raw.secretReveals==='object'?raw.secretReveals:{},questCalls:Number(raw.questCalls)||0,questProposalHistory:Array.isArray(raw.questProposalHistory)?raw.questProposalHistory:[],skippedAuthoredSides:Array.isArray(raw.skippedAuthoredSides)?raw.skippedAuthoredSides.filter(x=>typeof x==="string"):[],peopleSection:['main','npcs'].includes(raw.peopleSection)?raw.peopleSection:'main',avatarOverrides:raw.avatarOverrides&&typeof raw.avatarOverrides==='object'&&!Array.isArray(raw.avatarOverrides)?raw.avatarOverrides:{},speakerStyles:normalizeSpeakerStyles(raw.speakerStyles),speakerBookRef};}
 function alive(chat,a){return Number.isInteger(a?.id)&&asst(chat[a.id])&&sameSignature(fp(chat[a.id]),a.sig);}
 function scenePairSig(chat,id){return (user(chat[id-1])?contentFp(chat[id-1]):'')+'|'+contentFp(chat[id]);}
 function sanitise(chat,raw){
@@ -2565,6 +2565,142 @@ const signed=n=>n>0?'+'+n:n<0?'−'+Math.abs(n):'0';
 const summaryScope=()=>currentScope(ctx());
 // Optional quest memory uses Tavern Helper worldbook APIs; no per-turn scanning.
 function mawsWorldApi(name){return (typeof window[name]==='function'&&window[name].bind(window))||(typeof window.TavernHelper?.[name]==='function'&&window.TavernHelper[name].bind(window.TavernHelper))||(typeof host?.[name]==='function'&&host[name].bind(host))||null;}
+
+/* Arc-aware lorebook controller; manages only named MAWS entries. */
+let mawsArcBookJob=Promise.resolve(),mawsArcBookCache='';
+const mawsArcPopupSeen=new Set();
+function mawsArcMarker(e){
+ const name=String(e?.name||'');
+ if(name.includes('[MAWS_SHARED]'))return {shared:true};
+ const m=/\[MAWS_ARC:([A-Z][A-Z0-9_]*):([a-z][a-z0-9_]*)\]/.exec(name);
+ return m?{id:m[1]+':'+m[2]}:null;
+}
+function mawsCurrentArc(c,v=getView(c)){
+ const active=Object.entries(v.quests||{}).find(([id,q])=>q.status==='active'&&v.defs[id]);
+ if(!active)return String(read(c).arcSelected||'');
+ const [id,q]=active;
+ const aid=q.activeArcId||(q.arcs||[]).find(a=>a.status==='open')?.id||v.defs[id]?.arcs?.[0]?.id;
+ return aid?id+':'+aid:'';
+}
+function mawsNextStoryArc(c,v=getView(c)){
+ for(const pack of Object.values(read(c).packs||{})){
+  const defs=(pack.quests||[]).filter(q=>q.episode&&q.arcs?.length).sort((a,b)=>a.episode.localeCompare(b.episode));
+  for(let n=0;n<defs.length-1;n++){
+   const from=defs[n],to=defs[n+1],previous=v.quests[from.id],future=v.quests[to.id];
+   if(previous?.status!=='completed'||!future||!['locked','queued'].includes(future.status))continue;
+   if(defs.slice(n+1).some(d=>['active','completed'].includes(v.quests[d.id]?.status)))continue;
+   return {from,to,arc:to.arcs[0].id};
+  }
+ }
+ return null;
+}
+function mawsArcBookSync(c=ctx(),force=false){
+ const state=read(c),book=String(state.arcWorldbookName||'').trim();
+ if(!book)return Promise.resolve();
+ const scope=currentScope(c),selection=state.arcWorldbookEnabled?mawsCurrentArc(c):'';
+ const fingerprint=[scope,book,state.arcWorldbookEnabled,selection].join('|');
+ if(!force&&fingerprint===mawsArcBookCache)return mawsArcBookJob;
+ mawsArcBookJob=mawsArcBookJob.catch(()=>{}).then(async()=>{
+  if(stopped||scope!==currentScope(ctx()))return;
+  const get=mawsWorldApi('getWorldbook'),modify=mawsWorldApi('updateWorldbookWith');
+  if(!get||!modify)throw Error('Нужен совместимый Tavern Helper Worldbook API.');
+  const entries=await get(book);
+  if(!Array.isArray(entries))throw Error('Лорбук не вернул список записей.');
+  if(stopped||scope!==currentScope(ctx()))return;
+  let managed=0,different=0;
+  for(const entry of entries){
+   const mark=mawsArcMarker(entry);if(!mark)continue;
+   managed++;
+   const should=!!(state.arcWorldbookEnabled&&(mark.shared||mark.id===selection));
+   if((entry.enabled!==false)!==should)different++;
+  }
+  if(!managed)throw Error('В выбранном лорбуке нет меток MAWS_ARC / MAWS_SHARED.');
+  if(different)await modify(book,list=>list.map(entry=>{
+   const mark=mawsArcMarker(entry);if(!mark)return entry;
+   const should=!!(state.arcWorldbookEnabled&&(mark.shared||mark.id===selection));
+   return (entry.enabled!==false)===should?entry:{...entry,enabled:should};
+  }));
+  if(stopped||scope!==currentScope(ctx()))return;
+  mawsArcBookCache=fingerprint;
+  if(selection&&selection!==read(ctx()).arcSelected)update(ctx(),s=>s.arcSelected=selection);
+ }).catch(err=>{mawsArcBookCache='';mwDebugRecord('arc-lorebook-sync',String(err?.message||err));if(force)throw err;});
+ return mawsArcBookJob;
+}
+async function mawsSetArcBook(name){
+ const c=ctx(),scope=currentScope(c),old=String(read(c).arcWorldbookName||'');
+ const book=String(name||'').trim();
+ if(old&&old!==book){
+  const modify=mawsWorldApi('updateWorldbookWith');
+  if(modify)await modify(old,entries=>entries.map(e=>mawsArcMarker(e)?{...e,enabled:false}:e));
+ }
+ if(scope!==currentScope(ctx()))return;
+ update(c,s=>s.arcWorldbookName=book);
+ mawsArcBookCache='';
+ if(book)await mawsArcBookSync(c,true);
+}
+function mawsArcSkipMode(){
+ const popup=doc.getElementById('mw-skip-pop');if(!popup)return;
+ const selected=!!popup.querySelector('#mw-skip-arc')?.checked&&!!mawsNextStoryArc(ctx());
+ const h=popup.querySelector('#mw-skip-help');
+ if(h)h.textContent=selected?'Укажи события только Джи за пропущенное время. Хронологию мира и остальных персонажей задают текущая история и новая арка лорбука.':'Предложи события пропущенного времени или запиши их сама.';
+ const label=popup.querySelector('#mw-skip-note');if(label)label.textContent=selected?'Что произошло с Джи':'Что случилось за это время';
+ const generate=popup.querySelector('#mw-skip-generate');if(generate)generate.hidden=selected;
+ const done=popup.querySelector('#mw-skip-insert');if(done)done.textContent=selected?'Перейти к следующему эпизоду':'ОК — вставить в пост';
+}
+function mawsPrepareArcSkip(offer=false){
+ const popup=doc.getElementById('mw-skip-pop'),next=mawsNextStoryArc(ctx());
+ if(!popup)return;
+ const checkbox=popup.querySelector('#mw-skip-arc'),label=popup.querySelector('#mw-skip-arc-label');
+ if(checkbox){checkbox.disabled=!next;checkbox.checked=!!next&&offer;}
+ if(label)label.hidden=!next;
+ const title=popup.querySelector('#mw-skip-title');
+ if(title)title.textContent=offer&&next?'Перейти к следующей арке?':'Переход к сцене';
+ const n=popup.querySelector('#mw-skip-next');
+ if(n)n.textContent=next?next.to.episode+' · '+next.to.title:'';
+ if(offer&&next){popup.querySelector('#mw-skip-time').value='Некоторое время спустя';popup.querySelector('#mw-skip-place').value='';}
+ mawsArcSkipMode();
+}
+function mawsArcOffer(c,v,token){
+ if(mawsArcPopupSeen.has(token)||!mawsNextStoryArc(c,v))return;
+ mawsArcPopupSeen.add(token);
+ const scope=currentScope(c);
+ host.setTimeout(()=>{
+  if(stopped||scope!==currentScope(ctx())||!mawsEnabled(ctx()))return;
+  skipWidget();
+  const popup=doc.getElementById('mw-skip-pop');
+  if(!popup)return;
+  mawsPrepareArcSkip(true);
+  popup.hidden=false;
+ },250);
+}
+async function mawsArcTransition(){
+ const popup=doc.getElementById('mw-skip-pop'),c=ctx(),scope=currentScope(c),next=mawsNextStoryArc(c);
+ if(!popup||!next)return;
+ const status=popup.querySelector('#mw-skip-status'),submit=popup.querySelector('#mw-skip-insert');
+ const time=popup.querySelector('#mw-skip-time').value.trim(),place=popup.querySelector('#mw-skip-place').value.trim();
+ const ji=popup.querySelector('#mw-skip-draft').value.trim();
+ if(!time||!place){status.textContent='Укажи время и место новой сцены.';return;}
+ if(/[|\]\r\n]/.test(time+place)||/\[\/?MAWS_INTERVAL\]|\[SCENE_BREAK\||⟦MAWS_|\[MAWS_/.test(ji)){status.textContent='Убери служебные маркеры из полей.';return;}
+ const send=doc.getElementById('send_but');
+ if(!send||send.disabled){status.textContent='Кнопка отправки SillyTavern недоступна. Можно использовать обычный скип.';return;}
+ if(read(c).arcWorldbookEnabled&&!read(c).arcWorldbookName){status.textContent='Сначала выбери лорбук арок в настройках сюжетов.';return;}
+ submit.disabled=true;
+ try{
+  if(scope!==currentScope(ctx()))throw Error('Чат изменился.');
+  if(!append(c,{kind:'directStart',quest:next.to.id}))throw Error('Не получилось запустить эпизод.');
+  const anchor=lastAssistant(c.chat||[]);
+  update(c,s=>{s.arcTransition={after:anchor,to:next.to.title,time,place,ji:ji.slice(0,2400)};});
+  if(read(c).arcWorldbookEnabled)await mawsArcBookSync(c,true);
+  if(scope!==currentScope(ctx()))throw Error('Чат изменился.');
+  await promptSync();
+  const message='\n[SCENE_BREAK|'+time+'|'+place+']'+(ji?'\n[MAWS_INTERVAL]\n'+ji+'\n[/MAWS_INTERVAL]':'')+'\n';
+  if(!composerInsert(message))throw Error('Не найдено поле сообщения.');
+  invalidateSkip();popup.hidden=true;popup.querySelector('#mw-skip-draft').value='';
+  send.click();
+ }catch(err){status.textContent='Ошибка перехода: '+String(err?.message||err);}
+ finally{submit.disabled=false;}
+}
+
 let mawsWorldbooks=[];
 async function mawsLoadWorldbooks(){const list=mawsWorldApi('getWorldbookNames');if(!list)throw Error('В установленном Tavern Helper недоступен список лорбуков.');const names=await list();mawsWorldbooks=Array.isArray(names)?names.filter(x=>typeof x==='string'):[];redraw();}
 async function mawsToggleWorldMemory(c,enabled){
