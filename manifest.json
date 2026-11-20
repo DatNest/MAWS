@@ -6,9 +6,12 @@
   "js": "index.js",
   "css": "style.css",
   "generate_interceptor": "MAWSNativeBeforeGeneration",
-  "hooks": { "enable": "onEnable", "disable": "onDisable" },
+  "hooks": {
+    "enable": "onEnable",
+    "disable": "onDisable"
+  },
   "author": "MAWS / Ness",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "auto_update": false,
   "minimum_client_version": "1.12.6"
 }
