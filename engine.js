@@ -186,8 +186,8 @@ function lastAssistant(chat){
  Object.assign(lastAssistantMemo,{chat,length:chat.length,tail,revision:mawsChatRevision,id});
  return id;
 }
-function defaultState(){return {enabled:false,questAnchors:{},questArchive:{},auditorProfileId:"",romanceTracking:true,socialInfluence:'moderate',version:VERSION,promptOverrides:{},questDates:{},offers:[],ledger:[],serial:0,tab:'scene',seen:{},expandedHistory:null,openArchive:false,questSection:'active',lastAuditReport:null,openMain:true,openNpcs:false,peopleSection:'main',npcFilter:'Все',questGenre:'Все',questBuddies:[],archiveQuery:'',archiveSort:'chronology',generated:{},questOverrides:{},detachedDefs:{},retiredIds:[],suppressed:[],romanceChoices:[],directorOpen:false,inspected:null,packs:{},theme:{},snapshot:null,profileHistory:[],timeline:{},sceneAuto:true,questSummaries:{},questMemoryEnabled:false,questMemoryBook:'',questMemoryRefs:{},secretReveals:{},questCalls:0,questProposalHistory:[],skippedAuthoredSides:[],avatarOverrides:{},speakerStyles:[],speakerBookRef:null};}
-function normalize(raw){if(!raw||![11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43].includes(raw.version))return defaultState();const {summaryProfileId,sideProfileId,relationshipScoreSeen,...current}=raw;const speakerBookRef=raw.speakerBookRef&&typeof raw.speakerBookRef==='object'&&typeof raw.speakerBookRef.book==='string'&&typeof raw.speakerBookRef.name==='string'?{book:raw.speakerBookRef.book.slice(0,180),name:raw.speakerBookRef.name.slice(0,180),uid:raw.speakerBookRef.uid??null,contentHash:typeof raw.speakerBookRef.contentHash==='string'?raw.speakerBookRef.contentHash:''}:null;return {...defaultState(),...current,enabled:raw.enabled===true,questAnchors:raw.questAnchors&&typeof raw.questAnchors==='object'&&!Array.isArray(raw.questAnchors)?raw.questAnchors:{},questArchive:raw.questArchive&&typeof raw.questArchive==='object'&&!Array.isArray(raw.questArchive)?raw.questArchive:{},openMain:raw.openMain!==false,questSection:['active','queued','archive'].includes(raw.questSection)?raw.questSection:(raw.openArchive?'archive':'active'),lastAuditReport:raw.lastAuditReport&&typeof raw.lastAuditReport==='object'?raw.lastAuditReport:null,version:VERSION,promptOverrides:raw.promptOverrides&&typeof raw.promptOverrides==='object'&&!Array.isArray(raw.promptOverrides)?Object.fromEntries(Object.entries(raw.promptOverrides).filter(([k,v])=>typeof k==='string'&&typeof v==='string'&&v.length<=24000)): {},seen:raw.seen||{},offers:Array.isArray(raw.offers)?raw.offers:[],ledger:Array.isArray(raw.ledger)?raw.ledger:[],generated:raw.generated||{},suppressed:raw.suppressed||[],romanceChoices:raw.romanceChoices||[],packs:raw.packs||{},questBuddies:Array.isArray(raw.questBuddies)?raw.questBuddies:(raw.questBuddy&&raw.questBuddy!=='Все'?[raw.questBuddy]:[]),questOverrides:raw.questOverrides||{},detachedDefs:raw.detachedDefs||{},retiredIds:raw.retiredIds||[],theme:raw.theme||{},snapshot:raw.snapshot||null,profileHistory:raw.profileHistory||[],timeline:raw.timeline&&typeof raw.timeline==='object'&&!Array.isArray(raw.timeline)?raw.timeline:{},questSummaries:raw.questSummaries&&typeof raw.questSummaries==='object'?raw.questSummaries:{},questMemoryEnabled:raw.questMemoryEnabled===true,questMemoryBook:typeof raw.questMemoryBook==='string'?raw.questMemoryBook:'',questMemoryRefs:raw.questMemoryRefs&&typeof raw.questMemoryRefs==='object'?raw.questMemoryRefs:{},questDates:raw.questDates&&typeof raw.questDates==='object'&&!Array.isArray(raw.questDates)?raw.questDates:{},sceneAuto:raw.sceneAuto!==false,auditorProfileId:[raw.auditorProfileId,summaryProfileId,sideProfileId].find(x=>typeof x==='string'&&x.trim()&&!x.startsWith('@'))||'',romanceTracking:raw.romanceTracking!==false,socialInfluence:['soft','moderate','expressive'].includes(raw.socialInfluence)?raw.socialInfluence:'moderate',secretReveals:raw.secretReveals&&typeof raw.secretReveals==='object'?raw.secretReveals:{},questCalls:Number(raw.questCalls)||0,questProposalHistory:Array.isArray(raw.questProposalHistory)?raw.questProposalHistory:[],skippedAuthoredSides:Array.isArray(raw.skippedAuthoredSides)?raw.skippedAuthoredSides.filter(x=>typeof x==="string"):[],peopleSection:['main','npcs'].includes(raw.peopleSection)?raw.peopleSection:'main',avatarOverrides:raw.avatarOverrides&&typeof raw.avatarOverrides==='object'&&!Array.isArray(raw.avatarOverrides)?raw.avatarOverrides:{},speakerStyles:normalizeSpeakerStyles(raw.speakerStyles),speakerBookRef};}
+function defaultState(){return {enabled:false,questAnchors:{},questArchive:{},auditorProfileId:"",romanceTracking:true,socialInfluence:'moderate',version:VERSION,promptOverrides:{},questDates:{},offers:[],ledger:[],serial:0,tab:'scene',seen:{},expandedHistory:null,openArchive:false,questSection:'active',lastAuditReport:null,openMain:true,openNpcs:false,peopleSection:'main',npcFilter:'Все',questGenre:'Все',questBuddies:[],archiveQuery:'',archiveSort:'chronology',generated:{},questOverrides:{},detachedDefs:{},retiredIds:[],suppressed:[],romanceChoices:[],directorOpen:false,inspected:null,packs:{},theme:{},snapshot:null,profileHistory:[],timeline:{},sceneAuto:true,questSummaries:{},questMemoryEnabled:false,questMemoryBook:'',questMemoryRefs:{},secretReveals:{},questCalls:0,questProposalHistory:[],skippedAuthoredSides:[],avatarOverrides:{},speakerStyles:[],speakerBookRef:null,arcWorldbookEnabled:false,arcWorldbookBook:'',arcTransitionPending:null};}
+function normalize(raw){if(!raw||![11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43].includes(raw.version))return defaultState();const {summaryProfileId,sideProfileId,relationshipScoreSeen,...current}=raw;const speakerBookRef=raw.speakerBookRef&&typeof raw.speakerBookRef==='object'&&typeof raw.speakerBookRef.book==='string'&&typeof raw.speakerBookRef.name==='string'?{book:raw.speakerBookRef.book.slice(0,180),name:raw.speakerBookRef.name.slice(0,180),uid:raw.speakerBookRef.uid??null,contentHash:typeof raw.speakerBookRef.contentHash==='string'?raw.speakerBookRef.contentHash:''}:null;return {...defaultState(),...current,enabled:raw.enabled===true,questAnchors:raw.questAnchors&&typeof raw.questAnchors==='object'&&!Array.isArray(raw.questAnchors)?raw.questAnchors:{},questArchive:raw.questArchive&&typeof raw.questArchive==='object'&&!Array.isArray(raw.questArchive)?raw.questArchive:{},openMain:raw.openMain!==false,questSection:['active','queued','archive'].includes(raw.questSection)?raw.questSection:(raw.openArchive?'archive':'active'),lastAuditReport:raw.lastAuditReport&&typeof raw.lastAuditReport==='object'?raw.lastAuditReport:null,version:VERSION,promptOverrides:raw.promptOverrides&&typeof raw.promptOverrides==='object'&&!Array.isArray(raw.promptOverrides)?Object.fromEntries(Object.entries(raw.promptOverrides).filter(([k,v])=>typeof k==='string'&&typeof v==='string'&&v.length<=24000)): {},seen:raw.seen||{},offers:Array.isArray(raw.offers)?raw.offers:[],ledger:Array.isArray(raw.ledger)?raw.ledger:[],generated:raw.generated||{},suppressed:raw.suppressed||[],romanceChoices:raw.romanceChoices||[],packs:raw.packs||{},questBuddies:Array.isArray(raw.questBuddies)?raw.questBuddies:(raw.questBuddy&&raw.questBuddy!=='Все'?[raw.questBuddy]:[]),questOverrides:raw.questOverrides||{},detachedDefs:raw.detachedDefs||{},retiredIds:raw.retiredIds||[],theme:raw.theme||{},snapshot:raw.snapshot||null,profileHistory:raw.profileHistory||[],timeline:raw.timeline&&typeof raw.timeline==='object'&&!Array.isArray(raw.timeline)?raw.timeline:{},questSummaries:raw.questSummaries&&typeof raw.questSummaries==='object'?raw.questSummaries:{},questMemoryEnabled:raw.questMemoryEnabled===true,questMemoryBook:typeof raw.questMemoryBook==='string'?raw.questMemoryBook:'',questMemoryRefs:raw.questMemoryRefs&&typeof raw.questMemoryRefs==='object'?raw.questMemoryRefs:{},questDates:raw.questDates&&typeof raw.questDates==='object'&&!Array.isArray(raw.questDates)?raw.questDates:{},sceneAuto:raw.sceneAuto!==false,auditorProfileId:[raw.auditorProfileId,summaryProfileId,sideProfileId].find(x=>typeof x==='string'&&x.trim()&&!x.startsWith('@'))||'',romanceTracking:raw.romanceTracking!==false,socialInfluence:['soft','moderate','expressive'].includes(raw.socialInfluence)?raw.socialInfluence:'moderate',secretReveals:raw.secretReveals&&typeof raw.secretReveals==='object'?raw.secretReveals:{},questCalls:Number(raw.questCalls)||0,questProposalHistory:Array.isArray(raw.questProposalHistory)?raw.questProposalHistory:[],skippedAuthoredSides:Array.isArray(raw.skippedAuthoredSides)?raw.skippedAuthoredSides.filter(x=>typeof x==="string"):[],peopleSection:['main','npcs'].includes(raw.peopleSection)?raw.peopleSection:'main',avatarOverrides:raw.avatarOverrides&&typeof raw.avatarOverrides==='object'&&!Array.isArray(raw.avatarOverrides)?raw.avatarOverrides:{},speakerStyles:normalizeSpeakerStyles(raw.speakerStyles),speakerBookRef,arcWorldbookEnabled:raw.arcWorldbookEnabled===true,arcWorldbookBook:typeof raw.arcWorldbookBook==='string'?raw.arcWorldbookBook.slice(0,180):'',arcTransitionPending:raw.arcTransitionPending&&typeof raw.arcTransitionPending==='object'?raw.arcTransitionPending:null};}
 function alive(chat,a){return Number.isInteger(a?.id)&&asst(chat[a.id])&&sameSignature(fp(chat[a.id]),a.sig);}
 function scenePairSig(chat,id){return (user(chat[id-1])?contentFp(chat[id-1]):'')+'|'+contentFp(chat[id]);}
 function sanitise(chat,raw){
@@ -1124,6 +1124,8 @@ function currentFocusPrompt(v,chat=[]){
  }
  const actors=[...v.people,...v.npcs].filter(p=>p.met&&!p.hidden).slice(0,12);
  if(actors.length)lines.push('При значимом изменении отношения к {{user}} добавь ⟦MAWS_SOCIAL:ID:+N⟧ или ⟦MAWS_SOCIAL:ID:-N⟧, N от 1 до 8. Без перемены метка не нужна. ID: '+actors.map(p=>p.id).join(', ')+'.');
+ const jump=read(ctx()).arcTransitionPending;
+ if(jump&&jump.to===v.focus&&jump.anchor===v.at)lines.push('ПЕРВОЕ СООБЩЕНИЕ НОВОГО ЭПИЗОДА: '+jump.brief+'. Прошло времени: '+jump.time+'. Место: '+jump.place+'. Факты о Джи, переданные игроком: '+(jump.ji||'не указаны')+'. Кратко изложи события пропущенного периода по актуальным записям лорбука и подтверждённой истории чата. Отрази изменения персонажей, продолжи в новой сцене с указанного времени и места. Учитывай уже сыгранные отношения и сюжетные последствия. Действия и чувства {{user}} определяет игрок.');
  const checks=questCheckPrompt(v);if(checks)lines.push(checks);
  return lines.join('\n');
 }
@@ -2565,6 +2567,119 @@ const signed=n=>n>0?'+'+n:n<0?'−'+Math.abs(n):'0';
 const summaryScope=()=>currentScope(ctx());
 // Optional quest memory uses Tavern Helper worldbook APIs; no per-turn scanning.
 function mawsWorldApi(name){return (typeof window[name]==='function'&&window[name].bind(window))||(typeof window.TavernHelper?.[name]==='function'&&window.TavernHelper[name].bind(window.TavernHelper))||(typeof host?.[name]==='function'&&host[name].bind(host))||null;}
+
+/* Exact arc-tag worldbook management. Unmarked entries are never altered. */
+let arcBookChain=Promise.resolve(),arcBookLast='',arcBookRequested='',arcBookSynced='',arcBookError='';
+function arcBookTag(e){
+ const name=String(e?.name||e?.comment||'')+' '+String(e?.comment||'');
+ if(/\bMAWS_SHARED\b/.test(name))return 'shared';
+ const hit=name.match(/MAWS_ARC:(P_[A-Z0-9_]+):([a-z][a-z0-9_]*)/);
+ return hit?hit[1]+':'+hit[2]:'';
+}
+function arcBookActive(c){
+ const s=read(c),v=getView(c);
+ const active=v.focus&&v.quests[v.focus]?.status==='active'?[v.focus,v.quests[v.focus]]:Object.entries(v.quests).find(([,q])=>q.status==='active');
+ return {scope:currentScope(c),book:String(s.arcWorldbookBook||'').trim(),enabled:s.arcWorldbookEnabled===true&&mawsEnabled(c),tag:active?.[0]&&active?.[1]?.activeArcId?active[0]+':'+active[1].activeArcId:'',quest:active?.[0]||''};
+}
+function arcBookSync(c,force=false){
+ const cfg=arcBookActive(c),key=[cfg.scope,cfg.book,cfg.enabled,cfg.tag].join('|');
+ if(!force&&arcBookRequested===key)return arcBookChain;
+ arcBookRequested=key;
+ const task=async()=>{
+  const modify=mawsWorldApi('updateWorldbookWith'),get=mawsWorldApi('getWorldbook');
+  const books=[...new Set([arcBookLast,cfg.book].filter(Boolean))];
+  if(!books.length){arcBookSynced=key;arcBookError='';return;}
+  if(!modify||!get)throw Error('Нужен Tavern Helper: getWorldbook и updateWorldbookWith.');
+  for(const book of books){
+   if(currentScope(ctx())!==cfg.scope)return;
+   const entries=await get(book);
+   if(!Array.isArray(entries))throw Error('Не удалось прочитать лорбук «'+book+'».');
+   const tagged=entries.filter(e=>arcBookTag(e));
+   if(book===cfg.book&&cfg.enabled&&!tagged.length)throw Error('В лорбуке нет маркеров MAWS_ARC и MAWS_SHARED.');
+   const should=e=>book===cfg.book&&cfg.enabled&&(arcBookTag(e)==='shared'||arcBookTag(e)===cfg.tag);
+   if(tagged.some(e=>e.enabled!==should(e))){
+    if(currentScope(ctx())!==cfg.scope)return;
+    await modify(book,list=>list.map(e=>arcBookTag(e)?{...e,enabled:should(e)}:e));
+   }
+  }
+  arcBookLast=cfg.book||arcBookLast;arcBookSynced=key;arcBookError='';
+ };
+ const running=arcBookChain.catch(()=>{}).then(task);
+ arcBookChain=running.catch(err=>{arcBookError=String(err?.message||err);throw err;});
+ return arcBookChain;
+}
+function arcBookBackground(){
+ const c=ctx(),s=read(c);
+ if(!s.arcWorldbookEnabled&&!arcBookLast)return;
+ void arcBookSync(c).catch(e=>mwDebugRecord('arc-book',String(e?.message||e)));
+}
+function arcBookControls(s){
+ const current=arcBookActive(ctx()),selected=String(s.arcWorldbookBook||'');
+ return '<section class="mw-arc-book"><b>Лорбук активной арки</b><p>Переключает только записи MAWS_SHARED и MAWS_ARC выбранной книги.</p>'+
+ '<label><input type="checkbox" data-action="arcWorldbookEnabled" '+(s.arcWorldbookEnabled?'checked':'')+'> Автопереключение</label>'+
+ '<label>Лорбук <select data-action="arcWorldbookBook"><option value="">— Выбери книгу —</option>'+
+ mawsWorldbooks.map(n=>'<option value="'+esc(n)+'" '+(selected===n?'selected':'')+'>'+esc(n)+'</option>').join('')+
+ (selected&&!mawsWorldbooks.includes(selected)?'<option value="'+esc(selected)+'" selected>'+esc(selected)+'</option>':'')+'</select></label>'+
+ '<button type="button" data-action="worldbooksRefresh">Обновить</button> <button type="button" data-action="arcWorldbookSync">Применить</button>'+
+ '<small>Текущая арка: '+esc(current.tag||'нет')+'</small>'+
+ (arcBookError?'<p role="status">⚠ '+esc(arcBookError)+'</p>':'')+'</section>';
+}
+function nextArcEpisode(v,done){
+ const d=v.defs[done],pack=read(ctx()).packs?.[d?.packId];
+ if(!pack||v.quests[done]?.status!=='completed')return null;
+ return pack.quests.find(q=>q.type==='main'&&q.requires?.some(r=>r.quest===done&&r.statuses?.includes('completed'))&&['locked','queued'].includes(v.quests[q.id]?.status))||null;
+}
+function skipArcMode(from,to){
+ const pop=doc.getElementById('mw-skip-pop');if(!pop)return;
+ pop.dataset.arcFrom=from||'';pop.dataset.arcTo=to?.id||'';
+ pop.querySelector('#mw-skip-arc-fields').hidden=!to;
+ pop.querySelector('#mw-skip-arc-context').textContent=to?(to.title+' — '+to.short):'';
+ pop.querySelector('#mw-skip-generate').hidden=!!to;
+ pop.querySelector('#mw-skip-insert').hidden=!!to;
+ pop.querySelector('#mw-skip-transition').hidden=!to;
+ if(to){
+  pop.querySelector('#mw-skip-time').value='Спустя некоторое время';
+  pop.querySelector('#mw-skip-place').value='';
+  pop.querySelector('#mw-skip-ji').value='';
+ }
+}
+function offerNextArc(c,v,done){
+ const next=nextArcEpisode(v,done),pop=doc.getElementById('mw-skip-pop');
+ if(!next||!pop)return false;
+ skipArcMode(done,next);pop.hidden=false;
+ pop.querySelector('#mw-skip-status').textContent='Хочешь перейти к следующему эпизоду? Укажи время, место и события Джи за пропущенный период.';
+ return true;
+}
+async function applyNextArc(){
+ const pop=doc.getElementById('mw-skip-pop'),button=pop?.querySelector('#mw-skip-transition'),status=pop?.querySelector('#mw-skip-status');
+ if(!button||button.disabled)return;
+ const c=ctx(),scope=currentScope(c),from=pop.dataset.arcFrom,to=pop.dataset.arcTo,v=getView(c),next=nextArcEpisode(v,from);
+ const pending=read(c).arcTransitionPending;
+ const retry=pending?.to===to&&v.quests[to]?.status==='active';
+ if((!next||next.id!==to)&&!retry){status.textContent='Этот эпизод сейчас недоступен.';return;}
+ const time=pop.querySelector('#mw-skip-time').value.trim(),place=pop.querySelector('#mw-skip-place').value.trim(),ji=pop.querySelector('#mw-skip-ji').value.trim();
+ if(!time||!place||/[|\]\r\n]/.test(time+place)){status.textContent='Укажи время и место без символов |, ] и переносов строк.';return;}
+ if(ji.length>4000||/⟦MAWS_|\[MAWS_|\[SCENE_BREAK\|/.test(ji)){status.textContent='Текст Джи должен быть до 4000 символов и без служебных меток.';return;}
+ if(typeof c.generate!=='function'){status.textContent='Текущий клиент не поддерживает автоматический ответ через getContext().generate.';return;}
+ const s=read(c);
+ if(s.arcWorldbookEnabled&&(!s.arcWorldbookBook||!mawsWorldApi('getWorldbook')||!mawsWorldApi('updateWorldbookWith'))){status.textContent='Выбери арочный лорбук и проверь подключение Tavern Helper.';return;}
+ button.disabled=true;status.textContent='Применяю переход…';
+ try{
+  if(!retry){
+   const anchor=lastAssistant(c.chat||[]);
+   if(!append(c,{kind:'directStart',quest:to}))throw Error('Не получилось запустить следующий эпизод.');
+   update(c,x=>{x.arcTransitionPending={from,to,anchor,time,place,ji,brief:next.short};});
+  }
+  if(currentScope(ctx())!==scope)throw Error('Во время перехода сменился чат.');
+  if(read(c).arcWorldbookEnabled)await arcBookSync(c,true);
+  await promptSync();
+  if(currentScope(ctx())!==scope)throw Error('Перед генерацией сменился чат.');
+  pop.hidden=true;redraw();
+  await c.generate('normal',{automatic_trigger:true});
+ }catch(err){status.textContent='Не удалось сгенерировать вступление: '+String(err?.message||err)+'. Состояние арки сохранено.';pop.hidden=false;}
+ finally{button.disabled=false;}
+}
+
 let mawsWorldbooks=[];
 async function mawsLoadWorldbooks(){const list=mawsWorldApi('getWorldbookNames');if(!list)throw Error('В установленном Tavern Helper недоступен список лорбуков.');const names=await list();mawsWorldbooks=Array.isArray(names)?names.filter(x=>typeof x==='string'):[];redraw();}
 async function mawsToggleWorldMemory(c,enabled){
@@ -2827,7 +2942,8 @@ function watchCompletions(c,v){
   const completionAt=v.completions?.some(item=>item.id===id&&item.status==='completed'&&item.at===freshTurn)
    ? freshTurn:null;
   if(!displayed&&mawsShouldCelebrate(manual,completionAt,freshTurn)){
-   completionCelebration(id);displayed=true;
+   if(!offerNextArc(c,v,id))completionCelebration(id);
+   displayed=true;
   }
  }
 }
@@ -3185,7 +3301,7 @@ function directorTab(v,s){
  <section class="mw-dev-window" data-dev-window="prompts" ${ui.devTab==="prompts"?"":"hidden"}><div class="mw-dev-window-title">01 · Промпты движка</div><div class="mw-dev-inner">${promptEditor(s)}</div></section>
  <section class="mw-dev-window" data-dev-window="stories" ${ui.devTab==="stories"?"":"hidden"}><div class="mw-dev-window-title">02 · Мануальная режиссура</div><div class="mw-dev-inner"><p class="mw-dev-note">Сюжеты отдельно от движка. Удаление из библиотеки не стирает уже сыгранные итоги; активный сценарий остаётся доступным до завершения.</p><div class="mw-choice"><button data-action="packImport">＋ Добавить сюжетный пакет</button><button data-action="storyExportAll">↓ Экспорт библиотеки</button></div>
  ${Object.values(s.packs||{}).map(p=>`<div class="mw-pack-installed">${esc(p.title)} · v${esc(p.version)} · ${p.quests.length} заданий <button data-action="packExport" data-pack="${esc(p.id)}">Экспорт</button><button data-action="packReplace" data-pack="${esc(p.id)}">Заменить</button><button data-action="packRemove" data-pack="${esc(p.id)}">Удалить</button></div>`).join('')||'<small>Пакетов пока нет</small>'}
- <div class="mw-manual-list">${allStories.map(([id,d])=>`<div class="mw-manual-row"><span>${esc(d.title)} <small>${esc(id)}</small></span><div><button data-action="storyEdit" data-quest="${esc(id)}">Правка</button><button data-action="storyExport" data-quest="${esc(id)}">Экспорт</button><button data-action="storyRemove" data-quest="${esc(id)}">Убрать</button></div></div>`).join('')}</div>${edit||''}</div></section>
+ ${arcBookControls(s)}<div class="mw-manual-list">${allStories.map(([id,d])=>`<div class="mw-manual-row"><span>${esc(d.title)} <small>${esc(id)}</small></span><div><button data-action="storyEdit" data-quest="${esc(id)}">Правка</button><button data-action="storyExport" data-quest="${esc(id)}">Экспорт</button><button data-action="storyRemove" data-quest="${esc(id)}">Убрать</button></div></div>`).join('')}</div>${edit||''}</div></section>
  <section class="mw-dev-window" data-dev-window="theme" ${ui.devTab==="theme"?"":"hidden"}><div class="mw-dev-window-title">03 · Оформление и поведение</div><div class="mw-dev-inner"><small>Настройки сохраняются в текущем чате. Цвета можно выбрать через системную палитру, а в поддерживаемых браузерах — пипеткой.</small><div class="mw-timeline-tools"><b>📖 Снимки по сообщениям</b><small>Для каждого нового ответа отдельно закрепляются квесты, отношения, NPC и сцена. Прошлые ответы сохраняют свой прогресс. Дата относится к сюжету, а не к реальному календарю.</small><label><input type="checkbox" data-action="romanceTracking" ${s.romanceTracking!==false?'checked':''}> Отслеживать романтические отношения (отключить при использовании LoveScore)</label><label><input type="checkbox" data-action="sceneAuto" ${s.sceneAuto!==false?'checked':''}> Автоучёт сцены, NPC и отношений после ответа</label><label class="mw-social-influence-setting">Влияние отношений на поведение <select data-action="socialInfluence" aria-label="Выраженность социальных реакций"><option value="soft" ${s.socialInfluence==='soft'?'selected':''}>Мягкое</option><option value="moderate" ${s.socialInfluence==='moderate'?'selected':''}>Умеренное</option><option value="expressive" ${s.socialInfluence==='expressive'?'selected':''}>Выраженное</option></select><small>Учитываются шкала и свободный статус; подсказки получает только актуальный состав сцены и закадрового сюжета. Без отдельных ИИ-вызовов.</small></label></div>
  <div class="mw-theme-grid">${Object.entries(THEME_FIELDS).map(([id,[label]])=>`<label><span>${esc(label)}</span><input type="color" data-action="themeColor" data-theme="${id}" value="${theme[id]}"><button type="button" data-action="eyedropper" data-theme="${id}" title="Пипетка">◉</button></label>`).join('')}</div>
  <div class="mw-choice"><button type="button" data-action="sceneBreakEditor">Оформление таймскипа</button></div>
@@ -3491,7 +3607,7 @@ function skipWidget(){
  if(!doc.getElementById('mw-skip-pop')){
   const pop=doc.createElement('div');pop.id='mw-skip-pop';pop.className='mw-popup';pop.hidden=true;
   pop.setAttribute('role','dialog');pop.setAttribute('aria-label','Переход к сцене');
-  pop.innerHTML=`<section class="mw-popup-panel mw-skip-panel"><strong>Переход к сцене</strong><p>Предложи события пропущенного времени или запиши их сама. Проверь текст перед вставкой в пост.</p><label>Время<input id="mw-skip-time" placeholder="Следующее утро, 09:00" value="Следующее утро, 09:00"></label><label>Место<input id="mw-skip-place" placeholder="Например: двор у чайной"></label><label>Что случилось за это время<textarea id="mw-skip-draft" rows="7" placeholder="События можно написать вручную"></textarea></label><p id="mw-skip-status" role="status"></p><div class="mw-formactions"><button type="button" id="mw-skip-generate">Предложить / заново</button><button type="button" id="mw-skip-insert">ОК — вставить в пост</button><button type="button" id="mw-skip-close">Отмена</button></div></section>`;
+  pop.innerHTML=`<section class="mw-popup-panel mw-skip-panel"><strong>Переход к сцене</strong><p>Предложи события пропущенного времени или запиши их сама. Проверь текст перед вставкой в пост.</p><label>Время<input id="mw-skip-time" placeholder="Следующее утро, 09:00" value="Следующее утро, 09:00"></label><label>Место<input id="mw-skip-place" placeholder="Например: двор у чайной"></label><label>Что случилось за это время<textarea id="mw-skip-draft" rows="7" placeholder="События можно написать вручную"></textarea></label><div id="mw-skip-arc-fields" hidden><p><strong>Следующий эпизод:</strong> <span id="mw-skip-arc-context"></span></p><label>Что произошло с Джи за это время<textarea id="mw-skip-ji" rows="5" maxlength="4000" placeholder="Только подтверждённые изменения и действия твоей персоны"></textarea></label></div><p id="mw-skip-status" role="status"></p><div class="mw-formactions"><button type="button" id="mw-skip-generate">Предложить / заново</button><button type="button" id="mw-skip-insert">ОК — вставить в пост</button><button type="button" id="mw-skip-transition" hidden>Перейти к эпизоду и создать ответ</button><button type="button" id="mw-skip-close">Отмена</button></div></section>`;
   doc.body.appendChild(pop);
   for(const field of pop.querySelectorAll('input,textarea'))field.addEventListener('input',invalidateSkip);
  }
@@ -3556,10 +3672,10 @@ for(const el of eligible){const id=Number(el.getAttribute('mesid'));if(!Number.i
    destination.classList.add('mw-director-visible');
   }else console.warn('[MAWS] Dev panel was requested but not rendered: latest message missing or another tab active.');
  }
- watchCompletions(c,getView(c));if(last>=0&&mawsAllowsSilentSceneScan(freshTurnPairs.get(scope),scenePairSig(chat,last))&&!generationRunning&&!sceneBusy&&!sceneQueued&&s.sceneAuto!==false&&mawsServiceProfile(s)&&!(timelineRecord(c,s,last)?.sceneScanned&&timelineRecord(c,s,last)?.sceneReceiptVersion===SCENE_RECEIPT_VERSION&&timelineRecord(c,s,last)?.scenePairSig===scenePairSig(chat,last)))void queueSceneScan(false);
+ watchCompletions(c,getView(c));arcBookBackground();if(last>=0&&mawsAllowsSilentSceneScan(freshTurnPairs.get(scope),scenePairSig(chat,last))&&!generationRunning&&!sceneBusy&&!sceneQueued&&s.sceneAuto!==false&&mawsServiceProfile(s)&&!(timelineRecord(c,s,last)?.sceneScanned&&timelineRecord(c,s,last)?.sceneReceiptVersion===SCENE_RECEIPT_VERSION&&timelineRecord(c,s,last)?.scenePairSig===scenePairSig(chat,last)))void queueSceneScan(false);
 }catch(err){mwLastRenderError=String(err?.stack||err).slice(0,900);mwDebugRecord('render-error',mwLastRenderError);console.error('[MAWS] render',err);}finally{observer.takeRecords();busy=false;}}
 function schedule(){if(!stopped&&frame===null)frame=host.requestAnimationFrame(render);}
-function redraw(){schedule();void promptSync();}
+function redraw(){schedule();void promptSync();arcBookBackground();}
 function markSeen(c,keys){const v=getView(c);const hashes=getHashes(v);update(c,s=>{for(const k of keys)s.seen[k]=hashes[k];});}
 function saveJson(name,data){const blob=new host.Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});const url=host.URL.createObjectURL(blob);const link=doc.createElement('a');link.href=url;link.download=name;doc.body.appendChild(link);link.click();link.remove();host.setTimeout(()=>host.URL.revokeObjectURL(url),1000);}
 function readJsonFile(action,max=15000000){return new Promise(resolve=>{const pick=doc.createElement('input');pick.type='file';pick.accept='.json,application/json';pick.addEventListener('change',async()=>{const f=pick.files?.[0];if(!f){resolve(null);return;}try{if(f.size>max)throw Error('Файл превышает допустимый размер');resolve(JSON.parse(await f.text()));}catch(e){host.alert('Не удалось прочитать JSON: '+e.message);resolve(null);}},{once:true});pick.click();});}
@@ -3583,10 +3699,11 @@ function removePack(packId,c,v){update(c,x=>{const pack=x.packs[packId];if(!pack
 
 async function click(e){const skip=e.target.closest?.('#mw-skip-btn,#mw-skip-pop button');if(skip){
  const pop=doc.getElementById('mw-skip-pop');if(!pop)return;
- if(skip.id==='mw-skip-btn'){invalidateSkip();pop.hidden=!pop.hidden;}
+ if(skip.id==='mw-skip-btn'){invalidateSkip();if(pop.hidden){const v=getView(ctx()),done=Object.entries(v.quests).filter(([,q])=>q.status==='completed').map(([id])=>id).reverse().find(id=>nextArcEpisode(v,id));if(done)offerNextArc(ctx(),v,done);else{skipArcMode('');pop.hidden=false;}}else pop.hidden=true;}
  else if(skip.id==='mw-skip-close'){invalidateSkip();pop.hidden=true;}
  else if(skip.id==='mw-skip-generate')void generateSkipDraft();
  else if(skip.id==='mw-skip-insert')insertSkipDraft();
+ else if(skip.id==='mw-skip-transition')void applyNextArc();
  return;
  }
  const skipPop=doc.getElementById('mw-skip-pop');
@@ -3751,6 +3868,7 @@ async function click(e){const skip=e.target.closest?.('#mw-skip-btn,#mw-skip-pop
   }catch(err){host.alert('Не удалось импортировать дополнение: '+(err?.message||String(err)));}}, {once:true});picker.click();return;
  }
  if(a==='worldbooksRefresh'){void mawsLoadWorldbooks().catch(e=>host.alert('Не удалось получить лорбуки: '+String(e.message||e)));return;}
+  if(a==='arcWorldbookSync'){arcBookRequested='';void arcBookSync(c,true).then(redraw).catch(e=>{host.alert('Лорбук: '+String(e.message||e));redraw();});return;}
  if(a==='testConnection'){void testSettingsConnection();return;}
  if(a==='progressAudit'){void manualProgressAudit();return;}
   if(a==='profileScan'){ui.scanReport=scanChatForRecovery(chat,s,v);ui.scanScope=lastAssistant(chat)+'|'+(c.getCurrentChatId?.()||'');redraw();return;}
@@ -3810,7 +3928,7 @@ function change(e){if(e.target.matches?.('#mw-source-dialog [data-source-id]')){
  if(/^#[0-9a-f]{6}$/i.test(t.value)){
   update(ctx(),x=>{let item=(x.speakerStyles||[]).find(y=>y.id===t.dataset.speaker);if(!item&&DIALOGUE_SPEAKERS.has(t.dataset.speaker)){item={id:t.dataset.speaker,name:SPEAKER_CATALOG.find(y=>y.id===t.dataset.speaker).name,color:t.value};x.speakerStyles.push(item);}else if(item)item.color=t.value;});redraw();
  }return;
- }if(t.dataset.action==='auditorProfile'){update(ctx(),x=>x.auditorProfileId=t.value);redraw();return;}if(t.dataset.action==='socialInfluence'){if(SOCIAL_INFLUENCE_MODES.includes(t.value)){update(ctx(),x=>x.socialInfluence=t.value);redraw();}return;}if(t.dataset.action==='romanceTracking'){update(ctx(),x=>x.romanceTracking=!!t.checked);redraw();return;}if(t.dataset.action==='questMemoryEnabled'){const now=ctx(),on=!!t.checked;update(now,x=>x.questMemoryEnabled=on);void mawsToggleWorldMemory(now,on).catch(e=>host.alert('Режим изменён, но не удалось переключить старые записи лорбука: '+String(e.message||e)));if(on)void mawsLoadWorldbooks().catch(e=>host.alert(String(e.message||e)));redraw();return;}if(t.dataset.action==='questMemoryBook'){update(ctx(),x=>x.questMemoryBook=t.value);redraw();return;}if(t.dataset.action==='sceneAuto'){update(ctx(),x=>x.sceneAuto=!!t.checked);return;}if(t.dataset.action==='themeColor'){if(THEME_FIELDS[t.dataset.theme]&&/^#[0-9a-f]{6}$/i.test(t.value)){update(ctx(),x=>x.theme[t.dataset.theme]=t.value);applyTheme(read(ctx()).theme);}return;}if(t.dataset.action==='themeFont'){if(Object.hasOwn(THEME_FONTS,t.value)){update(ctx(),x=>x.theme.font=t.value);applyTheme(read(ctx()).theme);}return;}if(t.dataset.action==='archiveSort'){update(ctx(),x=>x.archiveSort=t.value);ui.archiveLimit=30;redraw();return;}if(t.dataset.action==='archiveSearch'){ui.archiveQuery=t.value;ui.archiveLimit=30;redraw();return;}if(t.matches('input[data-arc-goal="1"]')){const c=ctx(),chat=c.chat||[],msg=Number(t.closest('.mes[mesid]')?.getAttribute('mesid'));
+ }if(t.dataset.action==='auditorProfile'){update(ctx(),x=>x.auditorProfileId=t.value);redraw();return;}if(t.dataset.action==='socialInfluence'){if(SOCIAL_INFLUENCE_MODES.includes(t.value)){update(ctx(),x=>x.socialInfluence=t.value);redraw();}return;}if(t.dataset.action==='romanceTracking'){update(ctx(),x=>x.romanceTracking=!!t.checked);redraw();return;}if(t.dataset.action==='questMemoryEnabled'){const now=ctx(),on=!!t.checked;update(now,x=>x.questMemoryEnabled=on);void mawsToggleWorldMemory(now,on).catch(e=>host.alert('Режим изменён, но не удалось переключить старые записи лорбука: '+String(e.message||e)));if(on)void mawsLoadWorldbooks().catch(e=>host.alert(String(e.message||e)));redraw();return;}if(t.dataset.action==='questMemoryBook'){update(ctx(),x=>x.questMemoryBook=t.value);redraw();return;}if(t.dataset.action==='arcWorldbookEnabled'){update(ctx(),x=>x.arcWorldbookEnabled=!!t.checked);arcBookRequested='';redraw();return;}if(t.dataset.action==='arcWorldbookBook'){update(ctx(),x=>x.arcWorldbookBook=t.value);arcBookRequested='';redraw();return;}if(t.dataset.action==='sceneAuto'){update(ctx(),x=>x.sceneAuto=!!t.checked);return;}if(t.dataset.action==='themeColor'){if(THEME_FIELDS[t.dataset.theme]&&/^#[0-9a-f]{6}$/i.test(t.value)){update(ctx(),x=>x.theme[t.dataset.theme]=t.value);applyTheme(read(ctx()).theme);}return;}if(t.dataset.action==='themeFont'){if(Object.hasOwn(THEME_FONTS,t.value)){update(ctx(),x=>x.theme.font=t.value);applyTheme(read(ctx()).theme);}return;}if(t.dataset.action==='archiveSort'){update(ctx(),x=>x.archiveSort=t.value);ui.archiveLimit=30;redraw();return;}if(t.dataset.action==='archiveSearch'){ui.archiveQuery=t.value;ui.archiveLimit=30;redraw();return;}if(t.matches('input[data-arc-goal="1"]')){const c=ctx(),chat=c.chat||[],msg=Number(t.closest('.mes[mesid]')?.getAttribute('mesid'));
   if(msg!==lastAssistant(chat)){redraw();return;}
   const v=getView(c),q=v.quests[t.dataset.quest],a=q?.arcs?.find(a=>a.id===t.dataset.arc),g=a?.goals?.find(g=>g.id===t.dataset.goal);
   if(!g||q.status!=='active'||g.status==='obsolete'){redraw();return;}
@@ -4019,6 +4137,7 @@ host.__MAWS_NATIVE_BRIDGE__={
  engineInstance,
  syncPrompt:async()=>{
   if(stopped)return;
+  if(read(ctx()).arcWorldbookEnabled)try{await arcBookSync(ctx());}catch(err){mwDebugRecord('arc-book-generation',String(err?.message||err));}
   for(let attempt=0;attempt<4&&!stopped;attempt++){
    const scope=currentScope(ctx());
    await promptSync();
