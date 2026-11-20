@@ -1126,7 +1126,7 @@ function currentFocusPrompt(v,chat=[]){
  if(actors.length)lines.push('При значимом изменении отношения к {{user}} добавь ⟦MAWS_SOCIAL:ID:+N⟧ или ⟦MAWS_SOCIAL:ID:-N⟧, N от 1 до 8. Без перемены метка не нужна. ID: '+actors.map(p=>p.id).join(', ')+'.');
  const bridge=read(ctx()).arcTransition;
  if(bridge&&Number.isInteger(bridge.after)&&lastAssistant(chat)<=bridge.after+1){
-  lines.push('ОТКРЫВАЮЩИЙ ПОСТ НОВОЙ АРКИ. Арка: '+bridge.to+'. Время: '+bridge.time+'. Место: '+bridge.place+'. События Джи, заданные игроком: '+(bridge.ji||'не указаны')+'. Кратко опиши, как прошло пропущенное время, какие установленные ранее события произошли в мире и как изменились окружающие персонажи, используя активный арочный лорбук и факты текущего чата. Приведи повествование к началу нового эпизода. Сохраняй уже сыгранные изменения отношений. Не добавляй решения, поступки и внутренние чувства {{user}} от себя.');
+  lines.push('ОТКРЫВАЮЩИЙ ПОСТ НОВОЙ АРКИ. Арка: '+bridge.to+'. Время: '+bridge.time+'. Место: '+bridge.place+'. События персонажа игрока за время перехода: '+(bridge.playerEvents||'не указаны')+'. Кратко опиши, как прошло пропущенное время, какие установленные ранее события произошли в мире и как изменились окружающие персонажи, используя активный арочный лорбук и факты текущего чата. Приведи повествование к началу нового эпизода. Сохраняй уже сыгранные изменения отношений. Не добавляй решения, поступки и внутренние чувства {{user}} от себя.');
  }
  const checks=questCheckPrompt(v);if(checks)lines.push(checks);
  return lines.join('\n');
@@ -2647,8 +2647,8 @@ function mawsArcSkipMode(){
  const popup=doc.getElementById('mw-skip-pop');if(!popup)return;
  const selected=!!popup.querySelector('#mw-skip-arc')?.checked&&!!mawsNextStoryArc(ctx());
  const h=popup.querySelector('#mw-skip-help');
- if(h)h.textContent=selected?'Укажи события только Джи за пропущенное время. Хронологию мира и остальных персонажей задают текущая история и новая арка лорбука.':'Предложи события пропущенного времени или запиши их сама.';
- const label=popup.querySelector('#mw-skip-note');if(label)label.textContent=selected?'Что произошло с Джи':'Что случилось за это время';
+ if(h)h.textContent=selected?'Укажи, что происходило с персонажем игрока за пропущенное время. Остальная хронология определяется сыгранной историей и активным лорбуком.':'Предложи события пропущенного времени или запиши их сама.';
+ const label=popup.querySelector('#mw-skip-note');if(label)label.textContent=selected?'Что произошло с персонажем игрока':'Что случилось за это время';
  const generate=popup.querySelector('#mw-skip-generate');if(generate)generate.hidden=selected;
  const done=popup.querySelector('#mw-skip-insert');if(done)done.textContent=selected?'Перейти к следующему эпизоду':'ОК — вставить в пост';
 }
@@ -2683,9 +2683,9 @@ async function mawsArcTransition(){
  if(!popup||!next)return;
  const status=popup.querySelector('#mw-skip-status'),submit=popup.querySelector('#mw-skip-insert');
  const time=popup.querySelector('#mw-skip-time').value.trim(),place=popup.querySelector('#mw-skip-place').value.trim();
- const ji=popup.querySelector('#mw-skip-draft').value.trim();
+ const playerEvents=popup.querySelector('#mw-skip-draft').value.trim();
  if(!time||!place){status.textContent='Укажи время и место новой сцены.';return;}
- if(/[|\]\r\n]/.test(time+place)||/\[\/?MAWS_INTERVAL\]|\[SCENE_BREAK\||⟦MAWS_|\[MAWS_/.test(ji)){status.textContent='Убери служебные маркеры из полей.';return;}
+ if(/[|\]\r\n]/.test(time+place)||/\[\/?MAWS_INTERVAL\]|\[SCENE_BREAK\||⟦MAWS_|\[MAWS_/.test(playerEvents)){status.textContent='Убери служебные маркеры из полей.';return;}
  const send=doc.getElementById('send_but');
  if(!send||send.disabled){status.textContent='Кнопка отправки SillyTavern недоступна. Можно использовать обычный скип.';return;}
  if(read(c).arcWorldbookEnabled&&!read(c).arcWorldbookName){status.textContent='Сначала выбери лорбук арок в настройках сюжетов.';return;}
@@ -2705,11 +2705,11 @@ async function mawsArcTransition(){
   if(!append(c,{kind:startKind,quest:next.to.id}))throw Error('Не получилось запустить эпизод.');
   if(getView(c).quests[next.to.id]?.status!=='active')throw Error('Следующая арка не стала активной.');
   const anchor=lastAssistant(c.chat||[]);
-  update(c,s=>{s.arcTransition={after:anchor,to:next.to.title,time,place,ji:ji.slice(0,2400)};});
+  update(c,s=>{s.arcTransition={after:anchor,to:next.to.title,time,place,playerEvents:playerEvents.slice(0,2400)};});
   if(read(c).arcWorldbookEnabled)await mawsArcBookSync(c,true);
   if(scope!==currentScope(ctx()))throw Error('Чат изменился.');
   await promptSync();
-  const message='\n[SCENE_BREAK|'+time+'|'+place+']'+(ji?'\n[MAWS_INTERVAL]\n'+ji+'\n[/MAWS_INTERVAL]':'')+'\n';
+  const message='\n[SCENE_BREAK|'+time+'|'+place+']'+(playerEvents?'\n[MAWS_INTERVAL]\n'+playerEvents+'\n[/MAWS_INTERVAL]':'')+'\n';
   if(!composerInsert(message))throw Error('Не найдено поле сообщения.');
   invalidateSkip();popup.hidden=true;popup.querySelector('#mw-skip-draft').value='';
   send.click();
