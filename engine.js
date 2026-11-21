@@ -2854,7 +2854,13 @@ function metered(score,change,main=true){const tier=meterTier(score),left=score<
 function relationPrimaryColor(score){return score<-45?'#c96a78':score<0?'#cf876f':score<25?'#d7bc74':score<60?'#8ab98d':'#71c2a0';}
 function relationStatusMeta(status,score){const t=String(status||'').toLocaleLowerCase('ru');let side='#8199b1',icon='•';if(/враж|сопер|противосто|напряж/.test(t)){side='#d06670';icon='⚔';}else if(/отвращ/.test(t)){side='#9b79c8';icon='✶';}else if(/роман|люб|симпат/.test(t)){if(/нераздел|без взаимн/.test(t)){side='#e6bfd7';icon='♡';}else{side='#f07dac';icon='♥';}}else if(/друж/.test(t)){side='#6fb58a';icon='✦';}else if(/уважен/.test(t)){side='#86add2';icon='✧';}else if(/недовер/.test(t)){side='#bf7279';icon='!';}else if(/знаком/.test(t)){side='#a1adba';icon='•';}return {main:relationPrimaryColor(score),side,icon};}
 let avatarOverrideCache={};
-const avatar=p=>{const src=avatarOverrideCache[p.id];return src?`<img alt="" loading="lazy" src="${esc(src)}">`:`<span class="mw-avatar-initial">${esc(String(p.name||'?').split(/\s+/).map(t=>t[0]||'').slice(0,2).join('').toUpperCase())}</span>`;};
+const approvedAvatarUrls=new Set();
+function avatar(p){
+ const src=avatarOverrideCache[p.id],kind=avatarSourceKind(src,host.URL);
+ const allowed=kind==='inline'||kind==='remote'&&approvedAvatarUrls.has(currentScope(ctx())+'\n'+src);
+ return allowed?`<img alt="" loading="lazy" referrerpolicy="no-referrer" src="${esc(src)}">`:
+  `<span class="mw-avatar-initial">${esc(String(p.name||'?').split(/\s+/).map(t=>t[0]||'').slice(0,2).join('').toUpperCase())}</span>`;
+}
 function avatarControl(p,latest,small=false){
  const image=`<span class="mw-avatar">${avatar(p)}</span>`;
  return `<span class="mw-avatar-shell ${small?'mw-avatar-shell-npc':''}">${latest?`<button type="button" class="mw-avatar-open" data-action="avatarDialog" data-person="${esc(p.id)}" title="Изменить аватар: загрузить файл, вставить ссылку или вернуть прежний" aria-label="Выбрать аватар ${esc(p.name)}">${image}</button>`:image}</span>`;
@@ -2862,9 +2868,11 @@ function avatarControl(p,latest,small=false){
 function avatarDialog(person){
  const c=ctx(),scope=currentScope(c),p=getView(c).persons[person];if(!p)return;
  doc.getElementById('mw-avatar-dialog')?.__mwClose?.();
- const hasCustom=!!read(c).avatarOverrides?.[person];
+ const existingAvatar=read(c).avatarOverrides?.[person];
+  const hasCustom=!!existingAvatar;
+  const externalUnapproved=avatarSourceKind(existingAvatar,host.URL)==='remote'&&!approvedAvatarUrls.has(scope+'\n'+existingAvatar);
  const overlay=doc.createElement('div');overlay.id='mw-avatar-dialog';overlay.className='mw-popup mw-avatar-dialog-layer';
- overlay.innerHTML=`<section class="mw-popup-panel mw-avatar-dialog" role="dialog" aria-modal="true" aria-label="Аватар ${esc(p.name)}"><header><div><small>ВНЕШНИЙ ВИД</small><strong>Аватар · ${esc(p.name)}</strong></div><button type="button" data-avatar-action="close" aria-label="Закрыть">×</button></header><p>Выбери изображение с устройства или вставь прямую ссылку на картинку.</p><div class="mw-avatar-actions"><button type="button" data-avatar-action="file">↥ Загрузить файл</button>${hasCustom?'<button type="button" data-avatar-action="reset">↺ Вернуть исходный</button>':''}</div><form class="mw-avatar-url-form"><label for="mw-avatar-url">Ссылка на изображение</label><input id="mw-avatar-url" name="imageUrl" type="url" placeholder="https://example.com/avatar.png" inputmode="url" autocomplete="off" required><div class="mw-avatar-actions"><button type="submit">Применить ссылку</button><button type="button" data-avatar-action="close">Отмена</button></div></form></section>`;
+ overlay.innerHTML=`<section class="mw-popup-panel mw-avatar-dialog" role="dialog" aria-modal="true" aria-label="Аватар ${esc(p.name)}"><header><div><small>ВНЕШНИЙ ВИД</small><strong>Аватар · ${esc(p.name)}</strong></div><button type="button" data-avatar-action="close" aria-label="Закрыть">×</button></header><p>Выбери изображение с устройства или вставь прямую ссылку на картинку.</p><div class="mw-avatar-actions"><button type="button" data-avatar-action="file">↥ Загрузить файл</button>${externalUnapproved?'<button type="button" data-avatar-action="allow">Разрешить внешний аватар</button>':''}${hasCustom?'<button type="button" data-avatar-action="reset">↺ Вернуть исходный</button>':''}</div><p>Внешние изображения могут раскрыть IP-адрес серверу картинки. Для загрузки требуется разрешение на текущую сессию.</p><form class="mw-avatar-url-form"><label for="mw-avatar-url">Ссылка на изображение</label><input id="mw-avatar-url" name="imageUrl" type="url" placeholder="https://example.com/avatar.png" inputmode="url" autocomplete="off" required><div class="mw-avatar-actions"><button type="submit">Применить ссылку</button><button type="button" data-avatar-action="close">Отмена</button></div></form></section>`;
  const dismiss=()=>{overlay.remove();doc.removeEventListener('keydown',onKey,true);};overlay.__mwClose=dismiss;
  overlay.addEventListener('click',e=>{
   if(e.target===overlay){dismiss();return;}
@@ -2873,11 +2881,21 @@ function avatarDialog(person){
   if(action==='close')dismiss();
   else if(action==='file'){dismiss();void pickAvatar(person);}
   else if(action==='reset'){if(currentScope(ctx())!==scope)return;update(ctx(),st=>{delete st.avatarOverrides?.[person];});dismiss();redraw();}
+   else if(action==='allow'){
+    if(currentScope(ctx())!==scope)return;
+    const src=read(ctx()).avatarOverrides?.[person];
+    if(avatarSourceKind(src,host.URL)==='remote'&&host.confirm('Загрузить внешний аватар? Сервер картинки увидит твой IP-адрес. Разрешение действует до перезагрузки страницы.')){
+     approvedAvatarUrls.add(scope+'\n'+src);dismiss();redraw();
+    }
+   }
  });
  overlay.querySelector('form')?.addEventListener('submit',e=>{
   e.preventDefault();if(currentScope(ctx())!==scope){dismiss();return;}
   const raw=String(overlay.querySelector('input[name="imageUrl"]')?.value||'').trim();
-  try{const u=new host.URL(raw);if(!['https:','http:'].includes(u.protocol)||!u.hostname||raw.length>2000)throw Error('Нужна прямая ссылка http:// или https:// длиной до 2000 символов.');
+  try{if(avatarSourceKind(raw,host.URL)!=='remote')throw Error('Нужна ссылка http:// или https:// без встроенного пароля, длиной до 2000 символов.');
+   const u=new host.URL(raw);
+   if(!host.confirm('Загрузить внешний аватар? Сервер картинки увидит твой IP-адрес. Разрешение действует до перезагрузки страницы.'))return;
+   approvedAvatarUrls.add(scope+'\n'+u.href);
    update(ctx(),st=>{st.avatarOverrides||={};st.avatarOverrides[person]=u.href;});dismiss();redraw();
   }catch(err){host.alert('Не удалось использовать ссылку: '+String(err.message||err));}
  });
@@ -4014,7 +4032,7 @@ function closePopupWindows(){
 }
 function cleanup(){
  if(stopped)return Promise.resolve();
- stopped=true;
+ stopped=true;approvedAvatarUrls.clear();
  // One in-flight write may complete after the toggle was clicked. Wait for it
  // before removing this extension's prompt, avoiding zombie injections.
  const finishingPrompt=promptWriting;
