@@ -31,7 +31,7 @@ assert.equal(kind('https://user:password@evil.example.test/track.png'),null);
 assert.equal(kind('https://evil.example.test/'+('a'.repeat(2000))),null);
 assert.match(engine,/approvedAvatarUrls\.has\(currentScope\(ctx\(\)\)\+'\\n'\+src\)/);
 assert.match(engine,/referrerpolicy="no-referrer"/);
-assert.match(engine,/data-avatar-action=\\"allow\\"/);
+assert.match(engine,/data-avatar-action="allow"/);
 assert(!engine.includes("preview:String(raw??'').slice(0,900)"),'Never keep raw service response in diagnostics');
 const secret='sk-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const redacted=A.redactSecrets('Bearer sensitive-test '+secret+' https://api.example.test/?api_key=TOPSECRET123');
