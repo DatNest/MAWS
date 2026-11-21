@@ -8,7 +8,7 @@ const entry=fs.readFileSync(path.join(root,'index.js'),'utf8');
 const css=fs.readFileSync(path.join(root,'style.css'),'utf8');
 const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));
 assert.doesNotThrow(()=>new vm.Script(engine));
-assert.doesNotThrow(()=>new vm.Script(entry,{filename:'index.js'})); // syntax check only, no imports executed
+assert.doesNotThrow(()=>new vm.Script(entry.replaceAll('export async function','async function'),{filename:'index.js'})); // Parse ES module after stripping export keywords
 assert.equal(manifest.minimum_client_version,'1.17.0');
 assert.equal(manifest.version,'2.4.3');
 for(const [name,script] of [['engine.js',engine],['index.js',entry]]){
