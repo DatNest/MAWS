@@ -3,6 +3,7 @@ const DATA_KEY = 'maws_engine_universal_v1';
 const LEGACY_KEY = 'maws_engine_avatar_v1';
 const PROMPT_ID = 'MAWS_UNIVERSAL_DIRECTOR';
 const PANEL_ID = 'maws-native-settings';
+const ENGINE_BUILD = '2.4.2';
 
 const state = {
   running: false,
@@ -39,6 +40,17 @@ function updateToggle(c, enabled) {
   return true;
 }
 
+// SillyTavern's saveMetadata writes the current JSONL chat. Start the write
+// while this chat is active and wait for it before completing the toggle.
+async function saveEnabledForChat(c, enabled) {
+  if (!currentScope(c) || !updateToggle(c, enabled)) return false;
+  if (typeof c.saveMetadata !== 'function') {
+    throw new Error('SillyTavern не предоставил saveMetadata()');
+  }
+  await c.saveMetadata();
+  return true;
+}
+
 function panelHost() {
   return document.querySelector('#extensions_settings2') ?? document.querySelector('#extensions_settings');
 }
@@ -48,12 +60,13 @@ function renderPanel() {
   if (!panel) return;
   const c = getContext(), valid = !!currentScope(c), enabled = isEnabled(c);
   const input = panel.querySelector('#maws-native-enabled');
-  if (input) { input.checked = enabled; input.disabled = !valid || panel.dataset.loading === 'true'; }
+  if (input) { input.checked = enabled; input.disabled = !valid || panel.dataset.loading === 'true' || panel.dataset.saving === 'true'; }
   const open = panel.querySelector('[data-maws-open]');
   if (open) open.disabled = !valid || !enabled || !state.running;
   const note = panel.querySelector('[data-maws-status]');
   if (note) {
     note.textContent = state.error ? `Ошибка: ${state.error}` : !valid ? 'Открой чат, чтобы изменить его настройки.' :
+      panel.dataset.saving === 'true' ? 'Сохраняю выбор в чате…' :
       panel.dataset.loading === 'true' ? 'Применяю настройки чата…' :
       enabled && state.running ? 'Включён только в этом чате' : enabled ? 'Ожидает запуска движка' :
       'Выключен только в этом чате';
@@ -73,7 +86,7 @@ function mountPanel() {
       <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down" aria-hidden="true"></div>
     </div>
     <div class="inline-drawer-content maws-native-body">
-      <div class="maws-native-eyebrow">Ролевой движок · 2.4.1</div>
+      <div class="maws-native-eyebrow">Ролевой движок · 2.4.2</div>
       <label class="maws-native-switch" for="maws-native-enabled">
         <input id="maws-native-enabled" type="checkbox" role="switch" aria-describedby="maws-native-hint">
         <span class="maws-native-switch-track" aria-hidden="true"></span>
@@ -86,16 +99,20 @@ function mountPanel() {
   panel.addEventListener('change', event => {
     if (event.target?.id !== 'maws-native-enabled') return;
     const c = getContext(), enabled = !!event.target.checked;
-    if (!updateToggle(c, enabled)) { renderPanel(); return; }
-    // Invoke saveMetadata immediately while the originating chat is still active.
-    // Never queue a delayed save against a context that may have switched chats.
-    try {
-      Promise.resolve(c.saveMetadata?.()).catch(error => {
-        state.error = 'Не удалось сохранить настройки чата: ' + String(error?.message ?? error);
-        renderPanel();
-      });
-    } catch (error) { state.error = String(error?.message ?? error); }
-    void reconcile();
+    if (!currentScope(c)) { renderPanel(); return; }
+    panel.dataset.saving = 'true';
+    renderPanel();
+    // Do not treat an in-flight write as saved. In particular, do not let a
+    // subsequent engine render mask a save error while the page is reloading.
+    void saveEnabledForChat(c, enabled).then(saved => {
+      if (saved) { state.error = ''; return reconcile(); }
+    }).catch(error => {
+      state.error = 'Не удалось сохранить настройки чата: ' + String(error?.message ?? error);
+      console.error('[MAWS] Toggle save:', error);
+    }).finally(() => {
+      panel.dataset.saving = 'false';
+      renderPanel();
+    });
   });
   panel.querySelector('[data-maws-open]')?.addEventListener('click', () => {
     if (!window.__MAWS_NATIVE_BRIDGE__?.openPanel?.()) {
@@ -123,7 +140,9 @@ async function startEngine() {
   if (state.running) return;
   // The engine itself uses chatMetadata; its UI is lazily mounted on rendered messages.
   const token = ++state.loadNumber;
-  await import(`./engine.js?native=${token}`);
+  // A monotonically increasing counter alone resets to 1 after each page load.
+  // Use a per-load cache buster so an extension update cannot revive stale engine.js.
+  await import(`./engine.js?native=${ENGINE_BUILD}-${token}-${Date.now()}`);
   if (!window.__MAWS_NATIVE_BRIDGE__ || typeof window.__mawsUniversalCleanup !== 'function') {
     throw new Error('Движок не создал подключение к SillyTavern');
   }
