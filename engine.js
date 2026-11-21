@@ -3,6 +3,21 @@
 'use strict';
 const VERSION=43, KEY='maws_engine_universal_v1', LEGACY_KEYS=['maws_engine_avatar_v1'], PROMPT_ID='MAWS_UNIVERSAL_DIRECTOR';
 const MAX_TIMELINE_SNAPSHOTS=32;
+// Legacy profiles may contain URLs that should not silently contact other sites.
+function avatarSourceKind(value,URLCtor){
+ if(typeof value!=='string')return null;
+ if(value.length<=100000&&/^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/i.test(value))return 'inline';
+ if(value.length>2000||!/^https?:\/\//i.test(value)||typeof URLCtor!=='function')return null;
+ try{const url=new URLCtor(value);return ['https:','http:'].includes(url.protocol)&&url.hostname&&!url.username&&!url.password?'remote':null;}
+ catch{return null;}
+}
+function redactSecrets(value){
+ return String(value??'')
+  .replace(/\b(?:sk-|rk-|pk-|ghp_|gho_|ghu_|ghs_|ghr_|AIza)[A-Za-z0-9_-]{12,}/g,'[ключ скрыт]')
+  .replace(/(\bBearer\s+)[^\s"'<>]+/gi,'$1[ключ скрыт]')
+  .replace(/(\b(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|authorization)\s*[=:]\s*)[^\s&;,]+/gi,'$1[ключ скрыт]')
+  .replace(/([?&](?:api[_-]?key|token|secret|password)=)[^&\s]+/gi,'$1[ключ скрыт]');
+}
 // A clean installation has no built-in cast. Existing profiles keep their own
 // characters through the snapshot migration below.
 const PEOPLE=[];
@@ -1467,7 +1482,7 @@ function mawsShouldCelebrate(isManual,completionAt,freshTurnAt){
 }
 // Pure test mode leaves SillyTavern untouched. Accessible from Node/Chromium fixtures.
 if(typeof window!=='undefined'&&(window.__MAWS_UNIVERSAL_TEST_ONLY__||window.__MAWS_V11_TEST_ONLY__)){
- const api={mawsRpText,contentFp,legacyContentFp,contentSigMatches,relationshipLabel,PROMPT_FIELDS,promptValue,sidePlanPrompt,investigationReceipts,normalizeGeneratedPlan,mawsServiceProfile,sceneReceipts,storyMemoryEntries,validateDetailedMemory,parseCombinedSummary,ARCHIVE_SUMMARY_INSTRUCTION,LOREBOOK_SUMMARY_INSTRUCTION,storyContext,mainPlanPrompt,skipDraftPrompt,activateQuest,enforceSingleQuest,normalizeEpisode,project,currentFocusPrompt,questGoalChecks,questCheckPrompt,validateQuestArcPlan,arcDefinitions,applyArcProjection,defaultState,compactForStorage,firstActiveQuestSnapshot,questArchiveReceipt,parsedTags,auditConditions,auditThreshold,auditComplete,progress,hash,normalizeSpeakerMarker,validSpeakerMarker,replaceSpeechMarkerLine,fp,normalize,questDefs,validateStoryPack,installStoryPack,explicitNamedParticipants,idForName,anyNamedIn,rpCalendar,rpDateHint,rpElapsed,rpNarratedPassage,rpDateFormat,makeProfile,validateProfile,applyImportedProfile,genreOf,companionsOf,questTags,questCharacterIds,socialIntensity,socialStatusStyle,socialActingCast,socialBehaviorLine,socialBehaviorPrompt,goalGuidance,nextMainQuest,validateSideChoices,QUEST_GENRES,mawsAllowsSilentSceneScan,mawsShouldCelebrate};
+ const api={mawsRpText,contentFp,legacyContentFp,contentSigMatches,relationshipLabel,PROMPT_FIELDS,promptValue,sidePlanPrompt,investigationReceipts,normalizeGeneratedPlan,mawsServiceProfile,sceneReceipts,storyMemoryEntries,validateDetailedMemory,parseCombinedSummary,ARCHIVE_SUMMARY_INSTRUCTION,LOREBOOK_SUMMARY_INSTRUCTION,storyContext,mainPlanPrompt,skipDraftPrompt,activateQuest,enforceSingleQuest,normalizeEpisode,project,currentFocusPrompt,questGoalChecks,questCheckPrompt,validateQuestArcPlan,arcDefinitions,applyArcProjection,defaultState,compactForStorage,firstActiveQuestSnapshot,questArchiveReceipt,parsedTags,auditConditions,auditThreshold,auditComplete,progress,hash,normalizeSpeakerMarker,validSpeakerMarker,replaceSpeechMarkerLine,fp,normalize,questDefs,validateStoryPack,installStoryPack,explicitNamedParticipants,idForName,anyNamedIn,rpCalendar,rpDateHint,rpElapsed,rpNarratedPassage,rpDateFormat,makeProfile,validateProfile,applyImportedProfile,genreOf,companionsOf,questTags,questCharacterIds,socialIntensity,socialStatusStyle,socialActingCast,socialBehaviorLine,socialBehaviorPrompt,goalGuidance,nextMainQuest,validateSideChoices,QUEST_GENRES,mawsAllowsSilentSceneScan,mawsShouldCelebrate,avatarSourceKind,redactSecrets};
  window.__MAWS_UNIVERSAL_API__=api;window.__MAWS_V11_API__=api;return;
 }
 const host=window.parent,doc=host.document;
@@ -1475,16 +1490,16 @@ try{host.__mawsUniversalCleanup?.();host.__mawsAvatarCleanup?.()}catch(_e){}
 let stopped=false,frame=null,busy=false,lastPrompt='',saving=Promise.resolve(),directorScrollRequested=false;
 let promptWanted='',promptScope='',promptWriting=null;
 // Diagnostics use current chat data without extra model calls.
-const MAWS_BUILD='Universal Native 2.4.0', mwDebugEvents=[];
+const MAWS_BUILD='Universal Native 2.4.3', mwDebugEvents=[];
 let mwDirectorClicks=0,mwLastUiAction='нет',mwLastRenderError='';
 function mwDebugRecord(kind,detail=''){
- try{mwDebugEvents.push({at:new Date().toLocaleTimeString('ru-RU'),kind:String(kind).slice(0,80),detail:String(detail).slice(0,420)});if(mwDebugEvents.length>24)mwDebugEvents.shift();}catch(_e){}
+ try{mwDebugEvents.push({at:new Date().toLocaleTimeString('ru-RU'),kind:String(kind).slice(0,80),detail:redactSecrets(detail).slice(0,420)});if(mwDebugEvents.length>24)mwDebugEvents.shift();}catch(_e){}
 }
 function mwDiagState(){
  const report={build:MAWS_BUILD, loaded:true, stopped, renderBusy:busy, waitingFrame:frame!==null,
   directorClicks:mwDirectorClicks, directorRequested:!!ui.openDirector,
-  lastAction:mwLastUiAction, lastRenderError:mwLastRenderError,
-  auditBusy:progressAuditBusy, auditStatus:progressAuditStatus, lastAuditorResponse:mawsLastAuditorResponse, events:mwDebugEvents.slice(-12)};
+  lastAction:mwLastUiAction, lastRenderError:redactSecrets(mwLastRenderError),
+  auditBusy:progressAuditBusy, auditStatus:redactSecrets(progressAuditStatus), lastAuditorResponse:mawsLastAuditorResponse?{packet:mawsLastAuditorResponse.packet,attempt:mawsLastAuditorResponse.attempt,mode:mawsLastAuditorResponse.mode,chars:mawsLastAuditorResponse.chars}:null, events:mwDebugEvents.slice(-12)};
  try{
   const c=ctx(), chat=c?.chat||[], last=lastAssistant(chat), s=read(c);
   const el=[...doc.querySelectorAll('.mes[mesid]')].find(x=>Number(x.getAttribute('mesid'))===last);
@@ -2046,7 +2061,7 @@ async function mawsServiceRequest(c,state,instruction,maxTokens=1600,intent='aud
  let answer;
  try{answer=await svc.sendRequest(profileId,[{role:'system',content:system},{role:'user',content:instruction}],maxTokens,
   {stream:false,extractData:false,includePreset:false,includeInstruct:false});}
- catch(err){throw Error('Запрос профиля не выполнен: '+String(err?.cause?.message||err?.message||err));}
+ catch(err){throw Error('Запрос профиля не выполнен: '+redactSecrets(err?.cause?.message||err?.message||err));}
  const text=mawsReplyText(answer);
  if(text.trim()&&intent!=='scene-scan')return text;
  const shape=mawsResponseShape(answer);
@@ -2114,7 +2129,7 @@ let progressAuditBusy=false;
 let progressAuditStatus='';
 let mawsLastAuditorResponse=null;
 function mawsAuditCapture(raw,bi,attempt,mode){
- const result={packet:bi+1,attempt:attempt+1,mode,chars:typeof raw==='string'?raw.length:null,preview:String(raw??'').slice(0,900)};
+ const result={packet:bi+1,attempt:attempt+1,mode,chars:typeof raw==='string'?raw.length:null};
  mawsLastAuditorResponse=result;
  return result;
 }
