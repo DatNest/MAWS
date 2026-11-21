@@ -3,7 +3,7 @@ const DATA_KEY = 'maws_engine_universal_v1';
 const LEGACY_KEY = 'maws_engine_avatar_v1';
 const PROMPT_ID = 'MAWS_UNIVERSAL_DIRECTOR';
 const PANEL_ID = 'maws-native-settings';
-const ENGINE_BUILD = '2.4.2';
+const ENGINE_BUILD = '2.4.3';
 
 const state = {
   running: false,
@@ -86,7 +86,7 @@ function mountPanel() {
       <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down" aria-hidden="true"></div>
     </div>
     <div class="inline-drawer-content maws-native-body">
-      <div class="maws-native-eyebrow">Ролевой движок · 2.4.2</div>
+      <div class="maws-native-eyebrow">Ролевой движок · 2.4.3</div>
       <label class="maws-native-switch" for="maws-native-enabled">
         <input id="maws-native-enabled" type="checkbox" role="switch" aria-describedby="maws-native-hint">
         <span class="maws-native-switch-track" aria-hidden="true"></span>

@@ -3,6 +3,21 @@
 'use strict';
 const VERSION=43, KEY='maws_engine_universal_v1', LEGACY_KEYS=['maws_engine_avatar_v1'], PROMPT_ID='MAWS_UNIVERSAL_DIRECTOR';
 const MAX_TIMELINE_SNAPSHOTS=32;
+// Legacy profiles may contain URLs that should not silently contact other sites.
+function avatarSourceKind(value,URLCtor){
+ if(typeof value!=='string')return null;
+ if(value.length<=100000&&/^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/i.test(value))return 'inline';
+ if(value.length>2000||!/^https?:\/\//i.test(value)||typeof URLCtor!=='function')return null;
+ try{const url=new URLCtor(value);return ['https:','http:'].includes(url.protocol)&&url.hostname&&!url.username&&!url.password?'remote':null;}
+ catch{return null;}
+}
+function redactSecrets(value){
+ return String(value??'')
+  .replace(/\b(?:sk-|rk-|pk-|ghp_|gho_|ghu_|ghs_|ghr_|AIza)[A-Za-z0-9_-]{12,}/g,'[ключ скрыт]')
+  .replace(/(\bBearer\s+)[^\s"'<>]+/gi,'$1[ключ скрыт]')
+  .replace(/(\b(?:x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|authorization)\s*[=:]\s*)[^\s&;,]+/gi,'$1[ключ скрыт]')
+  .replace(/([?&](?:api[_-]?key|token|secret|password)=)[^&\s]+/gi,'$1[ключ скрыт]');
+}
 // A clean installation has no built-in cast. Existing profiles keep their own
 // characters through the snapshot migration below.
 const PEOPLE=[];
@@ -324,7 +339,20 @@ function realTimestamp(chat,id){const m=chat[id];const value=m?.send_date||m?.se
 function questIsRetired(s,id){return (s.retiredIds||[]).includes(id);}
 
 function normalizeEpisode(value){if(value===undefined||value==='')return '';if(typeof value!=='string'||!/^S\d{2}E\d{2}$/.test(value))throw Error('Эпизод: используй S01E01');return value;}
-function questDefs(s){const d={...(s.detachedDefs||{}),...(s.questOverrides||{})};for(const pack of Object.values(s.packs||{}))for(const q of (pack.quests||[]))d[q.id]={...q,packId:pack.id};for(const [id,q] of Object.entries(s.generated||{}))if(/^SIDE_[0-9A-Z]+$/.test(id))d[id]={...q,type:'side',steps:q.steps||[],stages:q.stages||[],map:q.map||[]};Object.assign(d,s.questOverrides||{});return d;}
+// Imported JSON must never be allowed to replace an object's prototype.
+// Keep existing quest IDs and override priority; only reserved property keys are skipped.
+const safeObjectKey=id=>typeof id==='string'&&id.length<=100&&!['__proto__','prototype','constructor'].includes(id);
+function safeQuestRecords(value){
+ return value&&typeof value==='object'&&!Array.isArray(value)?
+  Object.fromEntries(Object.entries(value).filter(([id])=>safeObjectKey(id))):{};
+}
+function questDefs(s){
+ const d={...safeQuestRecords(s.detachedDefs),...safeQuestRecords(s.questOverrides)};
+ for(const pack of Object.values(s.packs||{}))for(const q of (Array.isArray(pack?.quests)?pack.quests:[]))
+  if(q&&safeObjectKey(q.id))d[q.id]={...q,packId:pack.id};
+ for(const [id,q] of Object.entries(s.generated||{}))if(/^SIDE_[0-9A-Z]+$/.test(id))d[id]={...q,type:'side',steps:q.steps||[],stages:q.stages||[],map:q.map||[]};
+ return {...d,...safeQuestRecords(s.questOverrides)};
+}
 function activateQuest(view,id){
  const q=view.quests[id];if(!q||!['locked','queued','paused','active','offscreen'].includes(q.status))return false;
  for(const [other,x] of Object.entries(view.quests))if(other!==id&&x.status==='active')x.status='paused';
@@ -733,7 +761,7 @@ function makeProfile(state,view,chatId){
  for(const pack of Object.values(draft.packs||{}))pack.quests=pack.quests.map(d=>storyDefinitionForExport(d,view.quests[d.id]));
  return {format:PROFILE_FORMAT,format_version:PROFILE_SCHEMA,variant:PROFILE_VARIANT,engine:VERSION,exported_at:new Date().toISOString(),source_chat:String(chatId||''),summary:{active:Object.values(snap.quests).filter(q=>q.status==='active').length,queued:Object.values(snap.quests).filter(q=>q.status==='queued').length,archived:Object.values(snap.quests).filter(q=>['completed','failed','declined','discontinued'].includes(q.status)).length,npcs:snap.npcs.length,memories:snap.memories.length,generated:Object.keys(draft.generated).length},state:draft,snapshot:snap};
 }
-function validateProfile(p){if(!p||![PROFILE_VARIANT,...LEGACY_PROFILE_VARIANTS].includes(p.variant))throw Error('Этот файл не является совместимым профилем MAWS.');if(p.format!==PROFILE_FORMAT||p.format_version!==PROFILE_SCHEMA||!p.snapshot||!p.state)throw Error('Это не поддерживаемый файл профиля MAWS');if(p.engine>VERSION)throw Error('Профиль создан в более новой версии движка');if(!p.snapshot.quests||!Array.isArray(p.snapshot.people)||!Array.isArray(p.snapshot.npcs)||!p.snapshot.scene)throw Error('Некорректные данные сохранения');validateInvestigationSnapshot(p.snapshot.world?.investigation);if(Object.keys(p.snapshot.quests).length>200||p.snapshot.npcs.length>350||Object.keys(p.state.packs||{}).length>40)throw Error('Превышен лимит содержимого профиля');return p;}
+function validateProfile(p){if(!p||![PROFILE_VARIANT,...LEGACY_PROFILE_VARIANTS].includes(p.variant))throw Error('Этот файл не является совместимым профилем MAWS.');if(p.format!==PROFILE_FORMAT||p.format_version!==PROFILE_SCHEMA||!p.snapshot||!p.state)throw Error('Это не поддерживаемый файл профиля MAWS');if(p.engine>VERSION)throw Error('Профиль создан в более новой версии движка');if(!p.snapshot.quests||!Array.isArray(p.snapshot.people)||!Array.isArray(p.snapshot.npcs)||!p.snapshot.scene)throw Error('Некорректные данные сохранения');validateInvestigationSnapshot(p.snapshot.world?.investigation);if(Object.keys(p.snapshot.quests).some(id=>!safeObjectKey(id))||[...p.snapshot.people,...p.snapshot.npcs].some(person=>!safeObjectKey(person?.id)))throw Error('В профиле обнаружены недопустимые идентификаторы');if(Object.keys(p.snapshot.quests).length>200||p.snapshot.npcs.length>350||Object.keys(p.state.packs||{}).length>40)throw Error('Превышен лимит содержимого профиля');return p;}
 function applyImportedProfile(profile,chat){const p=validateProfile(profile),raw=copyPlain(p.state),s=normalize({...raw,version:VERSION});s.snapshot={data:copyPlain(p.snapshot),baseIndex:lastAssistant(chat)};s.legacyNpcPosts=[];s.ledger=[];s.offers=[];s.romanceChoices=[];s.profileHistory=[{at:new Date().toISOString(),source:p.source_chat||'',exported_at:p.exported_at||''}];s.seen={};s.timeline={};return s;}
 function toStoryPack(defs,id='manual_maws_stories',title='MAWS · ручная режиссура'){return {format:PACK_FORMAT,format_version:PACK_SCHEMA,id,version:'1.0.0',min_engine:VERSION,title,quests:defs.map(q=>copyPlain(q))};}
 
@@ -754,7 +782,7 @@ function unnamedCharacter(name){
 function project(chat,raw,until){
  const s=sanitise(chat,raw),defs=questDefs(s),quests=seedQ(defs),people=PEOPLE.map(p=>({...p})),npcs=[];const obj=Object.fromEntries([...people,...npcs].map(p=>[p.id,p]));const imported=s.snapshot&&until>=s.snapshot.baseIndex?s.snapshot:null;const replayFrom=imported?imported.baseIndex:-1;const calendarAt=i=>rpCalendar(chat,i,imported?{index:replayFrom,scene:imported.data.scene}:null);
  const view={romanceTracking:s.romanceTracking!==false,socialInfluence:s.socialInfluence,promptOverrides:s.promptOverrides||{},defs,quests,people,npcs,persons:obj,focus:null,pausedFocus:false,world:{investigation:[]},scene:{...START_SCENE,present:[...START_SCENE.present]},offers:[],at:until,deltas:{},questDeltas:{},completions:[],memories:[],news:[],lastSkip:null,romanceHistory:{},director:[],messages:[],contacts:[],romanceOffers:[],retiredIds:s.retiredIds||[]};
- if(imported){const snap=imported.data;Object.assign(quests,copyPlain(snap.quests||{}));people.splice(0,people.length,...copyPlain(snap.people||people));npcs.splice(0,npcs.length,...copyPlain(snap.npcs||npcs));for(const k of Object.keys(obj))delete obj[k];for(const p of [...people,...npcs])obj[p.id]=p;view.focus=snap.focus||null;view.pausedFocus=!!snap.pausedFocus;view.world={investigation:copyPlain(snap.world?.investigation||[])};view.scene=copyPlain(snap.scene||view.scene);view.memories=copyPlain(snap.memories||[]);}
+ if(imported){const snap=imported.data;Object.assign(quests,safeQuestRecords(copyPlain(snap.quests||{})));people.splice(0,people.length,...copyPlain(snap.people||people));npcs.splice(0,npcs.length,...copyPlain(snap.npcs||npcs));for(const k of Object.keys(obj))delete obj[k];for(const p of [...people,...npcs])if(safeObjectKey(p?.id))obj[p.id]=p;view.focus=snap.focus||null;view.pausedFocus=!!snap.pausedFocus;view.world={investigation:copyPlain(snap.world?.investigation||[])};view.scene=copyPlain(snap.scene||view.scene);view.memories=copyPlain(snap.memories||[]);}
  view.identity=s.identity||{};
  const pendingCast=new Map(),dismissedCast=new Set(),castIds=new Map();
  const legacyNpcPosts=new Set(s.legacyNpcPosts||[]);
@@ -1467,7 +1495,7 @@ function mawsShouldCelebrate(isManual,completionAt,freshTurnAt){
 }
 // Pure test mode leaves SillyTavern untouched. Accessible from Node/Chromium fixtures.
 if(typeof window!=='undefined'&&(window.__MAWS_UNIVERSAL_TEST_ONLY__||window.__MAWS_V11_TEST_ONLY__)){
- const api={mawsRpText,contentFp,legacyContentFp,contentSigMatches,relationshipLabel,PROMPT_FIELDS,promptValue,sidePlanPrompt,investigationReceipts,normalizeGeneratedPlan,mawsServiceProfile,sceneReceipts,storyMemoryEntries,validateDetailedMemory,parseCombinedSummary,ARCHIVE_SUMMARY_INSTRUCTION,LOREBOOK_SUMMARY_INSTRUCTION,storyContext,mainPlanPrompt,skipDraftPrompt,activateQuest,enforceSingleQuest,normalizeEpisode,project,currentFocusPrompt,questGoalChecks,questCheckPrompt,validateQuestArcPlan,arcDefinitions,applyArcProjection,defaultState,compactForStorage,firstActiveQuestSnapshot,questArchiveReceipt,parsedTags,auditConditions,auditThreshold,auditComplete,progress,hash,normalizeSpeakerMarker,validSpeakerMarker,replaceSpeechMarkerLine,fp,normalize,questDefs,validateStoryPack,installStoryPack,explicitNamedParticipants,idForName,anyNamedIn,rpCalendar,rpDateHint,rpElapsed,rpNarratedPassage,rpDateFormat,makeProfile,validateProfile,applyImportedProfile,genreOf,companionsOf,questTags,questCharacterIds,socialIntensity,socialStatusStyle,socialActingCast,socialBehaviorLine,socialBehaviorPrompt,goalGuidance,nextMainQuest,validateSideChoices,QUEST_GENRES,mawsAllowsSilentSceneScan,mawsShouldCelebrate};
+ const api={mawsRpText,contentFp,legacyContentFp,contentSigMatches,relationshipLabel,PROMPT_FIELDS,promptValue,sidePlanPrompt,investigationReceipts,normalizeGeneratedPlan,mawsServiceProfile,sceneReceipts,storyMemoryEntries,validateDetailedMemory,parseCombinedSummary,ARCHIVE_SUMMARY_INSTRUCTION,LOREBOOK_SUMMARY_INSTRUCTION,storyContext,mainPlanPrompt,skipDraftPrompt,activateQuest,enforceSingleQuest,normalizeEpisode,project,currentFocusPrompt,questGoalChecks,questCheckPrompt,validateQuestArcPlan,arcDefinitions,applyArcProjection,defaultState,compactForStorage,firstActiveQuestSnapshot,questArchiveReceipt,parsedTags,auditConditions,auditThreshold,auditComplete,progress,hash,normalizeSpeakerMarker,validSpeakerMarker,replaceSpeechMarkerLine,fp,normalize,questDefs,validateStoryPack,installStoryPack,explicitNamedParticipants,idForName,anyNamedIn,rpCalendar,rpDateHint,rpElapsed,rpNarratedPassage,rpDateFormat,makeProfile,validateProfile,applyImportedProfile,genreOf,companionsOf,questTags,questCharacterIds,socialIntensity,socialStatusStyle,socialActingCast,socialBehaviorLine,socialBehaviorPrompt,goalGuidance,nextMainQuest,validateSideChoices,QUEST_GENRES,mawsAllowsSilentSceneScan,mawsShouldCelebrate,avatarSourceKind,redactSecrets,safeObjectKey,safeQuestRecords};
  window.__MAWS_UNIVERSAL_API__=api;window.__MAWS_V11_API__=api;return;
 }
 const host=window.parent,doc=host.document;
@@ -1475,31 +1503,31 @@ try{host.__mawsUniversalCleanup?.();host.__mawsAvatarCleanup?.()}catch(_e){}
 let stopped=false,frame=null,busy=false,lastPrompt='',saving=Promise.resolve(),directorScrollRequested=false;
 let promptWanted='',promptScope='',promptWriting=null;
 // Diagnostics use current chat data without extra model calls.
-const MAWS_BUILD='Universal Native 2.4.0', mwDebugEvents=[];
+const MAWS_BUILD='Universal Native 2.4.3', mwDebugEvents=[];
 let mwDirectorClicks=0,mwLastUiAction='нет',mwLastRenderError='';
 function mwDebugRecord(kind,detail=''){
- try{mwDebugEvents.push({at:new Date().toLocaleTimeString('ru-RU'),kind:String(kind).slice(0,80),detail:String(detail).slice(0,420)});if(mwDebugEvents.length>24)mwDebugEvents.shift();}catch(_e){}
+ try{mwDebugEvents.push({at:new Date().toLocaleTimeString('ru-RU'),kind:String(kind).slice(0,80),detail:redactSecrets(detail).slice(0,420)});if(mwDebugEvents.length>24)mwDebugEvents.shift();}catch(_e){}
 }
 function mwDiagState(){
  const report={build:MAWS_BUILD, loaded:true, stopped, renderBusy:busy, waitingFrame:frame!==null,
   directorClicks:mwDirectorClicks, directorRequested:!!ui.openDirector,
-  lastAction:mwLastUiAction, lastRenderError:mwLastRenderError,
-  auditBusy:progressAuditBusy, auditStatus:progressAuditStatus, lastAuditorResponse:mawsLastAuditorResponse, events:mwDebugEvents.slice(-12)};
+  lastAction:mwLastUiAction, lastRenderError:redactSecrets(mwLastRenderError),
+  auditBusy:progressAuditBusy, auditStatus:redactSecrets(progressAuditStatus), lastAuditorResponse:mawsLastAuditorResponse?{packet:mawsLastAuditorResponse.packet,attempt:mawsLastAuditorResponse.attempt,mode:mawsLastAuditorResponse.mode,chars:mawsLastAuditorResponse.chars}:null, events:mwDebugEvents.slice(-12)};
  try{
   const c=ctx(), chat=c?.chat||[], last=lastAssistant(chat), s=read(c);
   const el=[...doc.querySelectorAll('.mes[mesid]')].find(x=>Number(x.getAttribute('mesid'))===last);
   const pane=el?.querySelector('.mw-panel'), dev=pane?.querySelector('.mw-director'), btn=pane?.querySelector('[data-action="directorToggle"]');
-  report.currentPost=last;report.currentPostName=last>=0?String(chat[last]?.name||''):'';
-  report.ignoredExtensionPosts=chat.map((m,i)=>mawsExternalPost(m)||mawsHiddenDomPost(i)?{message:i,name:String(m?.name||''),hiddenInDom:mawsHiddenDomPost(i)}:null).filter(Boolean).slice(-12);
+  report.currentPost=last;report.currentPostIsUser=last>=0?!!chat[last]?.is_user:false;
+  report.ignoredExtensionPosts=chat.map((m,i)=>mawsExternalPost(m)||mawsHiddenDomPost(i)?{message:i,hiddenInDom:mawsHiddenDomPost(i)}:null).filter(Boolean).slice(-12);
   report.messages=chat.length;report.isMaws=isMaws(c);
   report.tab=s.tab;report.activePanels=doc.querySelectorAll('.mw-panel').length;
   report.currentPanel=!!pane;report.directorInDom=!!dev;
   report.auditorSelected=!!s.auditorProfileId;report.auditorServiceAvailable=!!c?.ConnectionManagerRequestService?.sendRequest;
   report.engineProfileConfigured=!!mawsServiceProfile(s);
   if(btn){const css=host.getComputedStyle(btn),rect=btn.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
-   report.directorButton={disabled:btn.disabled,display:css.display,visibility:css.visibility,pointerEvents:css.pointerEvents,width:Math.round(rect.width),height:Math.round(rect.height),elementAtCenter:(doc.elementFromPoint(x,y)?.outerHTML||'').slice(0,260)};}
+   report.directorButton={disabled:btn.disabled,display:css.display,visibility:css.visibility,pointerEvents:css.pointerEvents,width:Math.round(rect.width),height:Math.round(rect.height),elementAtCenter:!!doc.elementFromPoint(x,y)};}
   if(dev){const css=host.getComputedStyle(dev),r=dev.getBoundingClientRect();report.directorView={display:css.display,visibility:css.visibility,opacity:css.opacity,top:Math.round(r.top),height:Math.round(r.height)};}
- }catch(err){report.diagnosticError=String(err?.stack||err).slice(0,700);}
+ }catch(err){report.diagnosticError=redactSecrets(err?.stack||err).slice(0,700);}
  return report;
 }
 function mwDebugPopup(){
@@ -2046,7 +2074,7 @@ async function mawsServiceRequest(c,state,instruction,maxTokens=1600,intent='aud
  let answer;
  try{answer=await svc.sendRequest(profileId,[{role:'system',content:system},{role:'user',content:instruction}],maxTokens,
   {stream:false,extractData:false,includePreset:false,includeInstruct:false});}
- catch(err){throw Error('Запрос профиля не выполнен: '+String(err?.cause?.message||err?.message||err));}
+ catch(err){throw Error('Запрос профиля не выполнен: '+redactSecrets(err?.cause?.message||err?.message||err));}
  const text=mawsReplyText(answer);
  if(text.trim()&&intent!=='scene-scan')return text;
  const shape=mawsResponseShape(answer);
@@ -2114,7 +2142,7 @@ let progressAuditBusy=false;
 let progressAuditStatus='';
 let mawsLastAuditorResponse=null;
 function mawsAuditCapture(raw,bi,attempt,mode){
- const result={packet:bi+1,attempt:attempt+1,mode,chars:typeof raw==='string'?raw.length:null,preview:String(raw??'').slice(0,900)};
+ const result={packet:bi+1,attempt:attempt+1,mode,chars:typeof raw==='string'?raw.length:null};
  mawsLastAuditorResponse=result;
  return result;
 }
@@ -2839,7 +2867,13 @@ function metered(score,change,main=true){const tier=meterTier(score),left=score<
 function relationPrimaryColor(score){return score<-45?'#c96a78':score<0?'#cf876f':score<25?'#d7bc74':score<60?'#8ab98d':'#71c2a0';}
 function relationStatusMeta(status,score){const t=String(status||'').toLocaleLowerCase('ru');let side='#8199b1',icon='•';if(/враж|сопер|противосто|напряж/.test(t)){side='#d06670';icon='⚔';}else if(/отвращ/.test(t)){side='#9b79c8';icon='✶';}else if(/роман|люб|симпат/.test(t)){if(/нераздел|без взаимн/.test(t)){side='#e6bfd7';icon='♡';}else{side='#f07dac';icon='♥';}}else if(/друж/.test(t)){side='#6fb58a';icon='✦';}else if(/уважен/.test(t)){side='#86add2';icon='✧';}else if(/недовер/.test(t)){side='#bf7279';icon='!';}else if(/знаком/.test(t)){side='#a1adba';icon='•';}return {main:relationPrimaryColor(score),side,icon};}
 let avatarOverrideCache={};
-const avatar=p=>{const src=avatarOverrideCache[p.id];return src?`<img alt="" loading="lazy" src="${esc(src)}">`:`<span class="mw-avatar-initial">${esc(String(p.name||'?').split(/\s+/).map(t=>t[0]||'').slice(0,2).join('').toUpperCase())}</span>`;};
+const approvedAvatarUrls=new Set();
+function avatar(p){
+ const src=avatarOverrideCache[p.id],kind=avatarSourceKind(src,host.URL);
+ const allowed=kind==='inline'||kind==='remote'&&approvedAvatarUrls.has(currentScope(ctx())+'\n'+src);
+ return allowed?`<img alt="" loading="lazy" referrerpolicy="no-referrer" src="${esc(src)}">`:
+  `<span class="mw-avatar-initial">${esc(String(p.name||'?').split(/\s+/).map(t=>t[0]||'').slice(0,2).join('').toUpperCase())}</span>`;
+}
 function avatarControl(p,latest,small=false){
  const image=`<span class="mw-avatar">${avatar(p)}</span>`;
  return `<span class="mw-avatar-shell ${small?'mw-avatar-shell-npc':''}">${latest?`<button type="button" class="mw-avatar-open" data-action="avatarDialog" data-person="${esc(p.id)}" title="Изменить аватар: загрузить файл, вставить ссылку или вернуть прежний" aria-label="Выбрать аватар ${esc(p.name)}">${image}</button>`:image}</span>`;
@@ -2847,9 +2881,11 @@ function avatarControl(p,latest,small=false){
 function avatarDialog(person){
  const c=ctx(),scope=currentScope(c),p=getView(c).persons[person];if(!p)return;
  doc.getElementById('mw-avatar-dialog')?.__mwClose?.();
- const hasCustom=!!read(c).avatarOverrides?.[person];
+ const existingAvatar=read(c).avatarOverrides?.[person];
+  const hasCustom=!!existingAvatar;
+  const externalUnapproved=avatarSourceKind(existingAvatar,host.URL)==='remote'&&!approvedAvatarUrls.has(scope+'\n'+existingAvatar);
  const overlay=doc.createElement('div');overlay.id='mw-avatar-dialog';overlay.className='mw-popup mw-avatar-dialog-layer';
- overlay.innerHTML=`<section class="mw-popup-panel mw-avatar-dialog" role="dialog" aria-modal="true" aria-label="Аватар ${esc(p.name)}"><header><div><small>ВНЕШНИЙ ВИД</small><strong>Аватар · ${esc(p.name)}</strong></div><button type="button" data-avatar-action="close" aria-label="Закрыть">×</button></header><p>Выбери изображение с устройства или вставь прямую ссылку на картинку.</p><div class="mw-avatar-actions"><button type="button" data-avatar-action="file">↥ Загрузить файл</button>${hasCustom?'<button type="button" data-avatar-action="reset">↺ Вернуть исходный</button>':''}</div><form class="mw-avatar-url-form"><label for="mw-avatar-url">Ссылка на изображение</label><input id="mw-avatar-url" name="imageUrl" type="url" placeholder="https://example.com/avatar.png" inputmode="url" autocomplete="off" required><div class="mw-avatar-actions"><button type="submit">Применить ссылку</button><button type="button" data-avatar-action="close">Отмена</button></div></form></section>`;
+ overlay.innerHTML=`<section class="mw-popup-panel mw-avatar-dialog" role="dialog" aria-modal="true" aria-label="Аватар ${esc(p.name)}"><header><div><small>ВНЕШНИЙ ВИД</small><strong>Аватар · ${esc(p.name)}</strong></div><button type="button" data-avatar-action="close" aria-label="Закрыть">×</button></header><p>Выбери изображение с устройства или вставь прямую ссылку на картинку.</p><div class="mw-avatar-actions"><button type="button" data-avatar-action="file">↥ Загрузить файл</button>${externalUnapproved?'<button type="button" data-avatar-action="allow">Разрешить внешний аватар</button>':''}${hasCustom?'<button type="button" data-avatar-action="reset">↺ Вернуть исходный</button>':''}</div><p>Внешние изображения могут раскрыть IP-адрес серверу картинки. Для загрузки требуется разрешение на текущую сессию.</p><form class="mw-avatar-url-form"><label for="mw-avatar-url">Ссылка на изображение</label><input id="mw-avatar-url" name="imageUrl" type="url" placeholder="https://example.com/avatar.png" inputmode="url" autocomplete="off" required><div class="mw-avatar-actions"><button type="submit">Применить ссылку</button><button type="button" data-avatar-action="close">Отмена</button></div></form></section>`;
  const dismiss=()=>{overlay.remove();doc.removeEventListener('keydown',onKey,true);};overlay.__mwClose=dismiss;
  overlay.addEventListener('click',e=>{
   if(e.target===overlay){dismiss();return;}
@@ -2858,11 +2894,21 @@ function avatarDialog(person){
   if(action==='close')dismiss();
   else if(action==='file'){dismiss();void pickAvatar(person);}
   else if(action==='reset'){if(currentScope(ctx())!==scope)return;update(ctx(),st=>{delete st.avatarOverrides?.[person];});dismiss();redraw();}
+   else if(action==='allow'){
+    if(currentScope(ctx())!==scope)return;
+    const src=read(ctx()).avatarOverrides?.[person];
+    if(avatarSourceKind(src,host.URL)==='remote'&&host.confirm('Загрузить внешний аватар? Сервер картинки увидит твой IP-адрес. Разрешение действует до перезагрузки страницы.')){
+     approvedAvatarUrls.add(scope+'\n'+src);dismiss();redraw();
+    }
+   }
  });
  overlay.querySelector('form')?.addEventListener('submit',e=>{
   e.preventDefault();if(currentScope(ctx())!==scope){dismiss();return;}
   const raw=String(overlay.querySelector('input[name="imageUrl"]')?.value||'').trim();
-  try{const u=new host.URL(raw);if(!['https:','http:'].includes(u.protocol)||!u.hostname||raw.length>2000)throw Error('Нужна прямая ссылка http:// или https:// длиной до 2000 символов.');
+  try{if(avatarSourceKind(raw,host.URL)!=='remote')throw Error('Нужна ссылка http:// или https:// без встроенного пароля, длиной до 2000 символов.');
+   const u=new host.URL(raw);
+   if(!host.confirm('Загрузить внешний аватар? Сервер картинки увидит твой IP-адрес. Разрешение действует до перезагрузки страницы.'))return;
+   approvedAvatarUrls.add(scope+'\n'+u.href);
    update(ctx(),st=>{st.avatarOverrides||={};st.avatarOverrides[person]=u.href;});dismiss();redraw();
   }catch(err){host.alert('Не удалось использовать ссылку: '+String(err.message||err));}
  });
@@ -3190,9 +3236,9 @@ function directorTab(v,s){
  <div class="mw-theme-grid">${Object.entries(THEME_FIELDS).map(([id,[label]])=>`<label><span>${esc(label)}</span><input type="color" data-action="themeColor" data-theme="${id}" value="${theme[id]}"><button type="button" data-action="eyedropper" data-theme="${id}" title="Пипетка">◉</button></label>`).join('')}</div>
  <div class="mw-choice"><button type="button" data-action="sceneBreakEditor">Оформление таймскипа</button></div>
  <label class="mw-fontpicker">Шрифт <select data-action="themeFont">${Object.entries(THEME_FONTS).map(([id,label])=>`<option value="${esc(id)}" ${theme.font===id?'selected':''}>${esc(label)}</option>`).join('')}</select></label><div class="mw-choice"><button data-action="themeReset">Вернуть стандартное оформление</button><button data-action="themeExport">↓ Экспорт палитры</button><button data-action="themeImport">↑ Импорт палитры</button></div>${mawsSpeakerEditor(s)}</div></section>
- <section class="mw-dev-window" data-dev-window="auditor" ${ui.devTab==="auditor"?"":"hidden"}><div class="mw-dev-window-title">04 · Служебный ИИ · подключение</div><div class="mw-dev-inner"><p class="mw-dev-note">Служебные запросы идут через выбранный профиль, НЕ используют его пресет и instruct-шаблон. Основной профиль RP не переключается. Этот профиль используется для всех служебных задач. Без выбранного профиля генерация не запускается.</p><label>Профиль подключения движка <select data-action="auditorProfile"><option value="">— Выбери профиль —</option>${mawsProfiles(ctx()).map(p=>`<option value="${esc(p.id)}" ${s.auditorProfileId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label>${s.auditorProfileId&&!mawsProfiles(ctx()).some(p=>p.id===s.auditorProfileId)?'<small>⚠ Сохранённый профиль сейчас недоступен. Выбери другой.</small>':''}<p class="mw-dev-note">Пресет выбирать не нужно: запрос передаётся без добавления пресета и instruct. Профиль здесь задаёт API и модель, а задания для проверки формирует движок.</p><p class="mw-dev-note">Оба вида итогов формируются выбранным профилем подключения без смены модели ролки. При отсутствии профиля движок попросит его выбрать. Ошибка генерации не сохраняет черновик автоматически.</p><div class="mw-connection-test"><strong>Проверка подключения</strong><small>Тестирует текущую модель или сохранённый профиль одним предложением. Ничего не добавляет в историю чата.</small><div class="mw-connection-test-row"><span>Выбранный профиль движка</span><button type="button" data-action="testConnection" ${actionState('connection-test')?.busy?'disabled':''}>${actionButton('connection-test','Проверить','Проверяю…')}</button></div>${actionFeedback('connection-test')}</div>
+ <section class="mw-dev-window" data-dev-window="auditor" ${ui.devTab==="auditor"?"":"hidden"}><div class="mw-dev-window-title">04 · Служебный ИИ · подключение</div><div class="mw-dev-inner"><p class="mw-dev-note">Служебные запросы идут через выбранный профиль, НЕ используют его пресет и instruct-шаблон. Основной профиль RP не переключается. Этот профиль используется для всех служебных задач. Без выбранного профиля генерация не запускается.</p><label>Профиль подключения движка <select data-action="auditorProfile"><option value="">— Выбери профиль —</option>${mawsProfiles(ctx()).map(p=>`<option value="${esc(p.id)}" ${s.auditorProfileId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label>${s.auditorProfileId&&!mawsProfiles(ctx()).some(p=>p.id===s.auditorProfileId)?'<small>⚠ Сохранённый профиль сейчас недоступен. Выбери другой.</small>':''}<p class="mw-dev-note">Пресет выбирать не нужно: запрос передаётся без добавления пресета и instruct. Профиль здесь задаёт API и модель, а задания для проверки формирует движок. Если профиль подключён к внешнему сервису, фрагменты RP, описания персонажей и лорбука передаются выбранному провайдеру ИИ. MAWS не читает API-ключи и не отправляет запросы на свои серверы.</p><p class="mw-dev-note">Оба вида итогов формируются выбранным профилем подключения без смены модели ролки. При отсутствии профиля движок попросит его выбрать. Ошибка генерации не сохраняет черновик автоматически.</p><div class="mw-connection-test"><strong>Проверка подключения</strong><small>Тестирует текущую модель или сохранённый профиль одним предложением. Ничего не добавляет в историю чата.</small><div class="mw-connection-test-row"><span>Выбранный профиль движка</span><button type="button" data-action="testConnection" ${actionState('connection-test')?.busy?'disabled':''}>${actionButton('connection-test','Проверить','Проверяю…')}</button></div>${actionFeedback('connection-test')}</div>
 </div></section>
- <section class="mw-dev-window" data-dev-window="profile" ${ui.devTab==="profile"?"":"hidden"}><div class="mw-dev-window-title">05 · Профиль и резервная копия</div><div class="mw-dev-inner"><small>Профиль хранит отношения, NPC, календарь, память, открытые и ожидающие истории, автопобочки и архивные результаты. Текст переписки экспортируется отдельно средствами SillyTavern.</small><div class="mw-choice"><button data-action="profileExport">↓ Сохранить профиль .json</button><button data-action="profileImport">↑ Загрузить профиль .json</button><button data-action="profileScan">⌕ Просканировать чат</button><button data-action="progressAudit" ${actionState('progress-audit')?.busy?'disabled':''}>${actionButton('progress-audit','↻ Проверить прогресс','Проверяю…')}</button><span class="mw-audit-live" role="status" style="display:block;margin:8px 0;font-size:12px;opacity:.9">${esc(progressAuditStatus)}</span>${actionFeedback('progress-audit')}</div><p class="mw-dev-note">Сканирование не тратит токены и ничего не изменяет: оно сверяет сохранённый снимок со служебными метками в текущей переписке. Кнопка «Проверить прогресс» делает отдельный запрос к модели и засчитывает только подтверждённые цитатами условия активных заданий, не переписывая посты.</p>${ui.scanReport&&ui.scanScope===(lastAssistant(ctx().chat||[])+'|'+(ctx().getCurrentChatId?.()||''))?scanReportHtml(ui.scanReport):''}</div></section>
+ <section class="mw-dev-window" data-dev-window="profile" ${ui.devTab==="profile"?"":"hidden"}><div class="mw-dev-window-title">05 · Профиль и резервная копия</div><div class="mw-dev-inner"><small>Профиль хранит отношения, NPC, календарь, память, открытые и ожидающие истории, автопобочки и архивные результаты. Экспорт JSON создаётся локально и может содержать личные тексты — делись им только с доверенными людьми. Текст переписки экспортируется отдельно средствами SillyTavern.</small><div class="mw-choice"><button data-action="profileExport">↓ Сохранить профиль .json</button><button data-action="profileImport">↑ Загрузить профиль .json</button><button data-action="profileScan">⌕ Просканировать чат</button><button data-action="progressAudit" ${actionState('progress-audit')?.busy?'disabled':''}>${actionButton('progress-audit','↻ Проверить прогресс','Проверяю…')}</button><span class="mw-audit-live" role="status" style="display:block;margin:8px 0;font-size:12px;opacity:.9">${esc(progressAuditStatus)}</span>${actionFeedback('progress-audit')}</div><p class="mw-dev-note">Сканирование не тратит токены и ничего не изменяет: оно сверяет сохранённый снимок со служебными метками в текущей переписке. Кнопка «Проверить прогресс» делает отдельный запрос к модели и засчитывает только подтверждённые цитатами условия активных заданий, не переписывая посты.</p>${ui.scanReport&&ui.scanScope===(lastAssistant(ctx().chat||[])+'|'+(ctx().getCurrentChatId?.()||''))?scanReportHtml(ui.scanReport):''}</div></section>
  <section class="mw-dev-window" data-dev-window="memory" ${ui.devTab==="memory"?"":"hidden"}>
  <div class="mw-dev-window-title">06 · Память и NPC</div>
  <div class="mw-dev-inner mw-memory-page">
@@ -3758,9 +3804,9 @@ async function click(e){const skip=e.target.closest?.('#mw-skip-btn,#mw-skip-pop
  if(a==='profileImport'){const chatId=c.getCurrentChatId?.(),filePromise=readJsonFile('profile');filePromise.then(p=>{if(!p)return;try{const now=ctx();if((now.getCurrentChatId?.()||'')!==(chatId||''))throw Error('За время импорта вы сменили чат');const valid=validateProfile(p),sum=valid.summary||{};const active=Object.values(v.quests).filter(q=>q.status==='active').length;const question=`Восстановить профиль?\nАктивно: ${sum.active||0} · в очереди: ${sum.queued||0} · архив: ${sum.archived||0} · NPC: ${sum.npcs||0} · автопобочки: ${sum.generated||0}.\nТекущий профиль заменится, текст чата не изменится. Рекомендуется сохранить резервную копию.`;if(!host.confirm(question))return;saveJson('MAWS_BACKUP_BEFORE_IMPORT.json',makeProfile(read(now),getView(now),now.getCurrentChatId?.()));store(now,applyImportedProfile(valid,now.chat||[]));ui.editStory=null;ui.scanReport=null;ui.scanScope=null;redraw();host.alert('Профиль восстановлен. Продолжайте историю с текущего сообщения.');}catch(err){host.alert('Ошибка восстановления: '+(err.message||err));}});return;}
  if(a==='sceneBreakEditor'){openSceneBreakEditor();return;}
  if(a==='themeExport'){saveJson('MAWS_PALETTE.json',{format:'maws-ui-theme',format_version:1,theme:themeValues(s.theme)});return;}
- if(a==='themeImport'){readJsonFile('theme',50000).then(data=>{if(!data)return;try{if(data.format!=='maws-ui-theme'||data.format_version!==1||!data.theme)throw Error('Неверный файл оформления');const next=themeValues(data.theme);update(ctx(),x=>x.theme=next);applyTheme(next);redraw();}catch(err){host.alert('Ошибка импорта палитры: '+err.message);}});return;}
+ if(a==='themeImport'){const originalScope=currentScope(c);readJsonFile('theme',50000).then(data=>{if(!data)return;try{if(currentScope(ctx())!==originalScope)throw Error('Чат изменился во время импорта. Повтори загрузку.');if(data.format!=='maws-ui-theme'||data.format_version!==1||!data.theme)throw Error('Неверный файл оформления');const next=themeValues(data.theme);update(ctx(),x=>x.theme=next);applyTheme(next);redraw();}catch(err){host.alert('Ошибка импорта палитры: '+redactSecrets(err.message));}});return;}
  if(a==='themeReset'){if(host.confirm('Сбросить только цвета и шрифт панели MAWS?')){update(c,x=>x.theme={});applyTheme({});redraw();}return;}
- if(a==='eyedropper'){if(typeof host.EyeDropper!=='function'){host.alert('Пипетка недоступна в этом браузере. Используйте обычный выбор цвета.');return;}new host.EyeDropper().open().then(result=>{if(!/^#[0-9a-f]{6}$/i.test(result.sRGBHex))return;update(ctx(),x=>{x.theme[b.dataset.theme]=result.sRGBHex;});applyTheme(read(ctx()).theme);redraw();}).catch(()=>{});return;}
+ if(a==='eyedropper'){if(typeof host.EyeDropper!=='function'){host.alert('Пипетка недоступна в этом браузере. Используйте обычный выбор цвета.');return;}const originalScope=currentScope(c),field=b.dataset.theme;new host.EyeDropper().open().then(result=>{if(currentScope(ctx())!==originalScope||!THEME_FIELDS[field]||!/^#[0-9a-f]{6}$/i.test(result.sRGBHex))return;update(ctx(),x=>{x.theme[field]=result.sRGBHex;});applyTheme(read(ctx()).theme);redraw();}).catch(()=>{});return;}
  if(a==='saveStage'){try{const item=b.closest('.mw-dev-story'),prompt=item?.querySelector('[data-stage="prompt"]')?.value.trim(),condition=item?.querySelector('[data-stage="complete_when"]')?.value.trim();if(!prompt||!condition||prompt.length>750||condition.length>400)throw Error('Не заполнены подсказка или условие завершения');const old=v.defs[id],q=v.quests[id];if(!old?.stages[q?.stage])throw Error('Текущий этап не найден');const copy=copyPlain(old);copy.id=id;copy.stages[q.stage]={...copy.stages[q.stage],prompt,complete_when:condition};update(c,x=>x.questOverrides[id]=copy);redraw();host.alert('Текст сохранён.');}catch(err){host.alert('Ошибка: '+err.message);}return;}
  if(a==='storyEdit'){ui.editStory=ui.editStory===id?null:id;redraw();return;}
  if(a==='cancelStory'){ui.editStory=null;redraw();return;}
@@ -3999,7 +4045,7 @@ function closePopupWindows(){
 }
 function cleanup(){
  if(stopped)return Promise.resolve();
- stopped=true;
+ stopped=true;approvedAvatarUrls.clear();
  // One in-flight write may complete after the toggle was clicked. Wait for it
  // before removing this extension's prompt, avoiding zombie injections.
  const finishingPrompt=promptWriting;
