@@ -11,7 +11,7 @@
     "disable": "onDisable"
   },
   "author": "MAWS / Ness",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "auto_update": true,
-  "minimum_client_version": "1.12.6"
+  "minimum_client_version": "1.17.0"
 }
