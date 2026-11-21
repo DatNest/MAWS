@@ -1517,17 +1517,17 @@ function mwDiagState(){
   const c=ctx(), chat=c?.chat||[], last=lastAssistant(chat), s=read(c);
   const el=[...doc.querySelectorAll('.mes[mesid]')].find(x=>Number(x.getAttribute('mesid'))===last);
   const pane=el?.querySelector('.mw-panel'), dev=pane?.querySelector('.mw-director'), btn=pane?.querySelector('[data-action="directorToggle"]');
-  report.currentPost=last;report.currentPostName=last>=0?String(chat[last]?.name||''):'';
-  report.ignoredExtensionPosts=chat.map((m,i)=>mawsExternalPost(m)||mawsHiddenDomPost(i)?{message:i,name:String(m?.name||''),hiddenInDom:mawsHiddenDomPost(i)}:null).filter(Boolean).slice(-12);
+  report.currentPost=last;report.currentPostIsUser=last>=0?!!chat[last]?.is_user:false;
+  report.ignoredExtensionPosts=chat.map((m,i)=>mawsExternalPost(m)||mawsHiddenDomPost(i)?{message:i,hiddenInDom:mawsHiddenDomPost(i)}:null).filter(Boolean).slice(-12);
   report.messages=chat.length;report.isMaws=isMaws(c);
   report.tab=s.tab;report.activePanels=doc.querySelectorAll('.mw-panel').length;
   report.currentPanel=!!pane;report.directorInDom=!!dev;
   report.auditorSelected=!!s.auditorProfileId;report.auditorServiceAvailable=!!c?.ConnectionManagerRequestService?.sendRequest;
   report.engineProfileConfigured=!!mawsServiceProfile(s);
   if(btn){const css=host.getComputedStyle(btn),rect=btn.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
-   report.directorButton={disabled:btn.disabled,display:css.display,visibility:css.visibility,pointerEvents:css.pointerEvents,width:Math.round(rect.width),height:Math.round(rect.height),elementAtCenter:(doc.elementFromPoint(x,y)?.outerHTML||'').slice(0,260)};}
+   report.directorButton={disabled:btn.disabled,display:css.display,visibility:css.visibility,pointerEvents:css.pointerEvents,width:Math.round(rect.width),height:Math.round(rect.height),elementAtCenter:!!doc.elementFromPoint(x,y)};}
   if(dev){const css=host.getComputedStyle(dev),r=dev.getBoundingClientRect();report.directorView={display:css.display,visibility:css.visibility,opacity:css.opacity,top:Math.round(r.top),height:Math.round(r.height)};}
- }catch(err){report.diagnosticError=String(err?.stack||err).slice(0,700);}
+ }catch(err){report.diagnosticError=redactSecrets(err?.stack||err).slice(0,700);}
  return report;
 }
 function mwDebugPopup(){
