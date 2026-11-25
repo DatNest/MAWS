@@ -16,7 +16,7 @@ with sync_playwright() as pw:
     index = (folder/'index.js').read_text('utf-8')
     index = index.replace('export async function onDisable()', 'async function onDisable()')
     index = index.replace('export async function onEnable()', 'async function onEnable()')
-    index = index.replace('await import(`./engine.js?native=${token}`);', 'new Function(window.__MAWS_ENGINE_SOURCE__)();')
+    index = index.replace('await import(`./engine.js?native=${ENGINE_BUILD}-${token}`);', 'new Function(window.__MAWS_ENGINE_SOURCE__)();')
     page.add_script_tag(content=index)
     page.wait_for_selector('#maws-native-enabled', timeout=10000)
     toggle=page.locator('#maws-native-enabled')
@@ -33,16 +33,27 @@ with sync_playwright() as pw:
     assert theme_a and '--maws-color-0:' in theme_a
     page.wait_for_function("document.querySelectorAll('#chat .mw-panel').length>0", timeout=20000)
     assert page.locator('#chat .mw-panel').count()<30
+    # The latest MAWS card starts as a compact bar, not as a hidden full UI.
+    assert page.locator('#chat .mw-panel .mw-compact-toggle[aria-expanded="false"]').count()>0
+    assert page.locator('#chat .mw-panel .mw-expanded').count()==0
+    # Explicit click builds its content and another click folds it back.
+    latest_card=page.locator('#chat .mw-panel').last
+    latest_card.locator('.mw-compact-toggle').click()
+    page.wait_for_function('document.querySelectorAll("#chat .mw-panel .mw-expanded").length>0')
+    latest_card.locator('.mw-compact-toggle').click()
+    page.wait_for_function('document.querySelectorAll("#chat .mw-panel .mw-expanded").length===0')
     count=page.evaluate('window.mockLogs.prompts.length')
     page.evaluate("window.MAWSNativeBeforeGeneration([],2048,()=>{},'quiet')")
     assert page.evaluate('window.mockLogs.prompts.length')==count
 
     # B starts OFF regardless of A; prompt and UI must clear.
     page.evaluate("window.mockSwitch('chat-B')")
-    page.wait_for_function("!document.querySelector('#maws-native-enabled').checked && !window.__MAWS_NATIVE_BRIDGE__", timeout=30000)
+    page.wait_for_function("!document.querySelector('#maws-native-enabled').checked && !!window.__MAWS_NATIVE_BRIDGE__", timeout=30000)
     page.wait_for_function("window.mockLogs.prompts.at(-1)[2]===''", timeout=20000)
     assert not page.evaluate("window.mockStore['chat-B'].maws_engine_universal_v1.enabled===true")
     assert page.locator('#chat .mw-panel').count()==0
+    # Moving to a disabled chat keeps the package loaded; only chat UI/prompt clear.
+    assert page.evaluate('!!window.__MAWS_NATIVE_BRIDGE__')
 
     # Enable B independently; it must never receive A's custom prompt.
     toggle.evaluate('(el)=>{el.checked=true;el.dispatchEvent(new Event("change",{bubbles:true}))}')
@@ -56,7 +67,7 @@ with sync_playwright() as pw:
 
     # Explicitly disable B; A remains enabled and its profile is retained.
     toggle.evaluate('(el)=>{el.checked=false;el.dispatchEvent(new Event("change",{bubbles:true}))}')
-    page.wait_for_function("!window.__MAWS_NATIVE_BRIDGE__", timeout=30000)
+    page.wait_for_function("document.querySelector('#maws-native-enabled').checked===false && !!window.__MAWS_NATIVE_BRIDGE__", timeout=30000)
     assert page.evaluate("window.mockStore['chat-B'].maws_engine_universal_v1.enabled") is False
     page.evaluate("window.mockSwitch('chat-A')")
     page.wait_for_function("document.querySelector('#maws-native-enabled').checked && !!window.__MAWS_NATIVE_BRIDGE__", timeout=30000)
@@ -69,7 +80,7 @@ with sync_playwright() as pw:
 
     # Revisit B; still off. Disabling the package must not erase A's preference.
     page.evaluate("window.mockSwitch('chat-B')")
-    page.wait_for_function("!document.querySelector('#maws-native-enabled').checked && !window.__MAWS_NATIVE_BRIDGE__", timeout=30000)
+    page.wait_for_function("!document.querySelector('#maws-native-enabled').checked && !!window.__MAWS_NATIVE_BRIDGE__", timeout=30000)
     assert page.evaluate('window.mockLogs.saves')>=2
     assert not errors, errors[:5]
     print('PASS: A ON/B OFF, A/B theme and prompt isolated, OFF cleanup, same-chat return persistence, quiet request, bounded visible panels')

@@ -10,7 +10,7 @@ const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'
 assert.doesNotThrow(()=>new vm.Script(engine));
 assert.doesNotThrow(()=>new vm.Script(entry.replaceAll('export async function','async function'),{filename:'index.js'})); // Parse ES module after stripping export keywords
 assert.equal(manifest.minimum_client_version,'1.17.0');
-assert.equal(manifest.version,'2.4.3');
+assert.equal(manifest.version,'2.4.4');
 for(const [name,script] of [['engine.js',engine],['index.js',entry]]){
   assert(!/\b(?:fetch|XMLHttpRequest|WebSocket|sendBeacon|EventSource)\s*\(/.test(script), name+': unexpected network primitive');
   assert(!/\beval\s*\(/.test(script),name+': eval is prohibited');

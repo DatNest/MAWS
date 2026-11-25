@@ -1503,7 +1503,7 @@ try{host.__mawsUniversalCleanup?.();host.__mawsAvatarCleanup?.()}catch(_e){}
 let stopped=false,frame=null,busy=false,lastPrompt='',saving=Promise.resolve(),directorScrollRequested=false;
 let promptWanted='',promptScope='',promptWriting=null;
 // Diagnostics use current chat data without extra model calls.
-const MAWS_BUILD='Universal Native 2.4.3', mwDebugEvents=[];
+const MAWS_BUILD='Universal Native 2.4.4', mwDebugEvents=[];
 let mwDirectorClicks=0,mwLastUiAction='нет',mwLastRenderError='';
 function mwDebugRecord(kind,detail=''){
  try{mwDebugEvents.push({at:new Date().toLocaleTimeString('ru-RU'),kind:String(kind).slice(0,80),detail:redactSecrets(detail).slice(0,420)});if(mwDebugEvents.length>24)mwDebugEvents.shift();}catch(_e){}
@@ -1551,7 +1551,7 @@ function mwDirectorToggleDirect(fromId){
  mwDirectorClicks++;mwLastUiAction='directorToggle · сообщение '+fromId;
  try{
   const c=ctx(),last=lastAssistant(c.chat||[]),state=read(c),opening=fromId===last?!ui.openDirector:true;
-  ui.openDirector=opening;directorScrollRequested=opening;if(opening)ui.collapsedPanels.delete(currentScope(c)+'|'+last);
+  ui.openDirector=opening;directorScrollRequested=opening;if(opening)ui.expandedPanels.add(currentScope(c)+'|'+last);
   mwDebugRecord('directorToggle','открыть='+opening+'; last='+last+'; origin='+fromId);
   redraw();
   if(opening)host.setTimeout(()=>{
@@ -1605,7 +1605,7 @@ function cachedProject(c,s,id){
  }
  return viewCache.views.get(id);
 }
-let ui={search:'',mainEdit:null,npcEdit:null,stepEdit:null,openSteps:new Set(),romanceOpen:new Set(),openDirector:false,skipOpen:false,editStory:null,archiveQuery:'',scanReport:null,scanScope:null,devOpen:new Set(),arcPages:new Map(),archiveExpanded:new Set(),archiveLimit:30,openQuestCards:new Set(),devTab:'prompts',collapsedPanels:new Set(),newNpc:false,memoryScrollReset:false};
+let ui={search:'',mainEdit:null,npcEdit:null,stepEdit:null,openSteps:new Set(),romanceOpen:new Set(),openDirector:false,skipOpen:false,editStory:null,archiveQuery:'',scanReport:null,scanScope:null,devOpen:new Set(),arcPages:new Map(),archiveExpanded:new Set(),archiveLimit:30,openQuestCards:new Set(),devTab:'prompts',expandedPanels:new Set(),newNpc:false,memoryScrollReset:false};
 const subs=[],ctx=()=>host.SillyTavern.getContext();
 const isMaws=c=>!!c&&Array.isArray(c.chat);
 const mawsEnabled=c=>isMaws(c)&&c.chatMetadata?.[KEY]?.enabled===true;
@@ -3331,8 +3331,14 @@ function mwDecorateInteractions(root){
  }
 }
 
-function panelHtml(v,s,latest,messageId){const un=latest?unreadFor(v,s):{};const collapsibleKey=currentScope(ctx())+'|'+messageId,collapsed=ui.collapsedPanels.has(collapsibleKey);
- return `<button type="button" class="mw-compact-toggle" data-action="panelCollapse" aria-expanded="${!collapsed}" aria-label="${collapsed?'Развернуть':'Свернуть'} панель MAWS"><span class="mw-compact-copy"><span class="mw-compact-group mw-compact-datetime">${mwIcon('calendar')}<span class="mw-compact-date">${esc(rpDateFormat(v.scene.dateISO))}</span><span class="mw-compact-sep" aria-hidden="true"></span><span class="mw-compact-time">${esc(v.scene.time||'Время неизвестно')}</span></span><span class="mw-compact-divider" aria-hidden="true"></span><span class="mw-compact-group mw-compact-location">${mwIcon('pin')}<span class="mw-compact-place" title="${esc(v.scene.place||'Место неизвестно')}">${esc(v.scene.place||'Место неизвестно')}</span></span></span><span class="mw-compact-chevron" aria-hidden="true">${mwIcon(collapsed?'chevronDown':'chevronUp')}</span></button><div class="mw-expanded" ${collapsed?'hidden':''}><header class="mw-head"><span class="mw-head-brand">${mwIcon('star')}<span>MAWS</span></span><span class="mw-head-tools"><span class="mw-build">UNIVERSAL <span class="mw-build-version">v${MAWS_BUILD}</span></span><button type="button" class="mw-debug-action" data-action="mawsDebug" title="Показать технический статус, ошибки и отчёт диагностики MAWS" aria-label="Открыть диагностику MAWS">${mwIcon('bug')}<span>Отладка</span></button></span></header><nav class="mw-tabs">${[['scene','Сцена'],['people','Персонажи'],['quests','Задания']].map(([k,label])=>`<button type="button" data-action="tab" data-tab="${k}" aria-current="${s.tab===k?'page':'false'}" class="${s.tab===k?'on':''}"><span class="mw-tab-main">${mwIcon(k)}<span class="mw-tab-label">${label}</span></span>${pill(un[k])}</button>`).join('')}</nav><section class="mw-content">${s.tab==='people'?peopleTab(v,s,latest,un):s.tab==='quests'?questTab(v,s,latest):sceneTab(v,latest,s)}</section>${latest?developerPanel(v,s,latest):''}</div>`;}
+function panelHtml(v,s,latest,messageId){
+ const collapsibleKey=currentScope(ctx())+'|'+messageId,collapsed=!ui.expandedPanels.has(collapsibleKey);
+ // Collapsed panels build just the summary bar. No costly hidden tab markup.
+
+ const bar=`<button type="button" class="mw-compact-toggle" data-action="panelCollapse" aria-expanded="${!collapsed}" aria-label="${collapsed?'Развернуть':'Свернуть'} панель MAWS"><span class="mw-compact-copy"><span class="mw-compact-group mw-compact-datetime">${mwIcon('calendar')}<span class="mw-compact-date">${esc(rpDateFormat(v.scene.dateISO))}</span><span class="mw-compact-sep" aria-hidden="true"></span><span class="mw-compact-time">${esc(v.scene.time||'Время неизвестно')}</span></span><span class="mw-compact-divider" aria-hidden="true"></span><span class="mw-compact-group mw-compact-location">${mwIcon('pin')}<span class="mw-compact-place" title="${esc(v.scene.place||'Место неизвестно')}">${esc(v.scene.place||'Место неизвестно')}</span></span></span><span class="mw-compact-chevron" aria-hidden="true">${mwIcon(collapsed?'chevronDown':'chevronUp')}</span></button>`;
+ if(collapsed)return bar;
+ const un=latest?unreadFor(v,s):{};
+ return bar+`<div class="mw-expanded"><header class="mw-head"><span class="mw-head-brand">${mwIcon('star')}<span>MAWS</span></span><span class="mw-head-tools"><span class="mw-build">UNIVERSAL <span class="mw-build-version">v${MAWS_BUILD}</span></span><button type="button" class="mw-debug-action" data-action="mawsDebug" title="Показать технический статус, ошибки и отчёт диагностики MAWS" aria-label="Открыть диагностику MAWS">${mwIcon('bug')}<span>Отладка</span></button></span></header><nav class="mw-tabs">${[['scene','Сцена'],['people','Персонажи'],['quests','Задания']].map(([k,label])=>`<button type="button" data-action="tab" data-tab="${k}" aria-current="${s.tab===k?'page':'false'}" class="${s.tab===k?'on':''}"><span class="mw-tab-main">${mwIcon(k)}<span class="mw-tab-label">${label}</span></span>${pill(un[k])}</button>`).join('')}</nav><section class="mw-content">${s.tab==='people'?peopleTab(v,s,latest,un):s.tab==='quests'?questTab(v,s,latest):sceneTab(v,latest,s)}</section>${latest?developerPanel(v,s,latest):''}</div>`;}
 function romanceOfferHtml(o,v,chat){const p=v.persons[o.person];if(!p||p.romance||p.romanceClosed)return '';const isLocked=locked(chat,o.anchor.id);return `<aside class="mw-offer mw-romance-proposal"><div class="mw-kicker">♡ РОМАНТИЧЕСКАЯ ЛИНИЯ · ${esc(p.name)}</div><p>${esc(o.reason||'В отношениях возникло нечто особенное.')}</p><small>Откроются шкалы интереса, доверия, влечения и влюблённости NPC. Они помогают отслеживать инициативы, но не заставляют {{user}} отвечать взаимностью. Линию можно прекратить вручную или она может органично угаснуть.</small><div class="mw-choice"><button data-action="romanceChoice" data-person="${esc(o.person)}" data-choice="accept" ${isLocked?'disabled':''}>♡ Открыть</button><button data-action="romanceChoice" data-person="${esc(o.person)}" data-choice="decline" ${isLocked?'disabled':''}>Не развивать</button></div></aside>`;}
 function completionHtml(c,v,s){
  const d=v.defs[c.id];if(!d)return '';
@@ -3554,10 +3560,12 @@ function mawsDecorateOnce(el,message,dialogue,styles,sceneHtml){
  renderTextDecorations(el,dialogue,styles,sceneHtml);
  body.__mwDecorated=signature;
 }
-function render(){frame=null;if(stopped||busy)return;let c;try{c=ctx();}catch{return;}const root=doc.getElementById('chat');if(!root)return;mawsWatchCurrentChat();if(!mawsEnabled(c)){resetWorkflows();doc.getElementById(THEME_STYLE_ID)?.remove();root.querySelectorAll('.mw-panel,.mw-offer-slot').forEach(x=>x.remove());doc.getElementById('mw-skip-box')?.remove();doc.getElementById('mw-skip-pop')?.remove();return;}busy=true;try{const chat=c.chat||[],last=lastAssistant(chat),scope=currentScope(c);
+function render(){frame=null;if(stopped||busy)return;let c;try{c=ctx();}catch{return;}const root=doc.getElementById('chat');if(!root)return;mawsWatchCurrentChat();if(!mawsEnabled(c)){ui.expandedPanels.clear();resetWorkflows();doc.getElementById(THEME_STYLE_ID)?.remove();root.querySelectorAll('.mw-panel,.mw-offer-slot').forEach(x=>x.remove());doc.getElementById('mw-skip-box')?.remove();doc.getElementById('mw-skip-pop')?.remove();return;}busy=true;try{const chat=c.chat||[],last=lastAssistant(chat),scope=currentScope(c);
  if(renderedScope!==scope){
   root.querySelectorAll('.mw-panel,.mw-offer-slot').forEach(x=>x.remove());
   ui.openDirector=false;ui.skipOpen=false;ui.editStory=null;ui.mainEdit=null;ui.npcEdit=null;
+  // Opening another chat resets all cards to compact mode; user expansion is transient.
+  ui.expandedPanels.clear();
   renderedScope=scope;
  }
  skipWidget();let s=ensureTimeline(c,read(c));if(c.chatMetadata&&!Array.isArray(c.chatMetadata[KEY]?.legacyNpcPosts))store(c,s);avatarOverrideCache=s.avatarOverrides||{};applyTheme(s.theme);if(last>=0)s=initSeen(c,s,timelineView(c,s,last));
@@ -3585,7 +3593,7 @@ for(const el of eligible){const id=Number(el.getAttribute('mesid'));if(!Number.i
   continue;
  }
  if(!asst(chat[id])){el.querySelectorAll('.mw-panel,.mw-offer-slot').forEach(x=>x.remove());continue;}
- const text=el.querySelector('.mes_text');if(!text)continue;const v=timelineView(c,s,id),latest=id===last;let panel=el.querySelector('.mw-panel');if(!panel){panel=doc.createElement('div');panel.className='mw-panel';text.prepend(panel);}const html=panelHtml(v,s,latest,id);if(panel.__mw_html!==html){const memoryTop=panel.querySelector('.mw-memory-list')?.scrollTop??0;panel.innerHTML=html;panel.__mw_html=html;const memoryList=panel.querySelector('.mw-memory-list');if(memoryList)memoryList.scrollTop=ui.memoryScrollReset?0:memoryTop;if(latest)ui.memoryScrollReset=false;}panel.classList.toggle('mw-is-collapsed',ui.collapsedPanels.has(currentScope(c)+'|'+id));mwBindDirectButtons(panel,id);mwDecorateInteractions(panel);
+ const text=el.querySelector('.mes_text');if(!text)continue;const v=timelineView(c,s,id),latest=id===last;let panel=el.querySelector('.mw-panel');if(!panel){panel=doc.createElement('div');panel.className='mw-panel';text.prepend(panel);}const html=panelHtml(v,s,latest,id);if(panel.__mw_html!==html){const memoryTop=panel.querySelector('.mw-memory-list')?.scrollTop??0;panel.innerHTML=html;panel.__mw_html=html;const memoryList=panel.querySelector('.mw-memory-list');if(memoryList)memoryList.scrollTop=ui.memoryScrollReset?0:memoryTop;if(latest)ui.memoryScrollReset=false;}panel.classList.toggle('mw-is-collapsed',!ui.expandedPanels.has(currentScope(c)+'|'+id));mwBindDirectButtons(panel,id);mwDecorateInteractions(panel);
  const end=v.completions.filter(x=>x.at===id),news=v.news.filter(x=>x.at===id);const rom=v.romanceOffers.find(o=>o.anchor.id===id&&sameSignature(o.anchor.sig,fp(chat[id])));const previousMessage=chat[id-1],skipMatch=previousMessage?.is_user?String(previousMessage.mes||'').matchAll(SCENE_RX).next().value:null;const newsRange=skipMatch?(v.scene.time+' → '+skipMatch[1]):'';const checkReceipt=id===last&&questGoalChecks(v).length?`<small class="mw-check-receipt">${parsedTags(chat[id]?.mes).some(x=>x.kind==='questChecked')?'✓ Проверка целей завершена':'Проверка целей: модель не вернула отметку завершения'}</small>`:'';const markup=checkReceipt+(latest?npcCandidateMarkup(v.npcCandidates):'')+(rom?romanceOfferHtml(rom,v,chat):'')+end.map(x=>completionHtml(x,v,s)).join('')+updateHtml(news,newsRange);
  let holder=el.querySelector('.mw-offer-slot');if(markup){if(!holder){holder=doc.createElement('div');holder.className='mw-offer-slot';text.parentElement.appendChild(holder);}if(holder.__mw_html!==markup){holder.innerHTML=markup;holder.__mw_html=markup;}mwDecorateInteractions(holder);}else holder?.remove();mawsDecorateOnce(el,chat[id],true,s.speakerStyles,s.sceneBreakHtml||DEFAULT_SCENE_BREAK_HTML);
  }root.querySelectorAll('.mw-panel,.mw-offer-slot').forEach(el=>{if(!el.closest('.mes[mesid]'))el.remove();});
@@ -3722,7 +3730,7 @@ async function click(e){const skip=e.target.closest?.('#mw-skip-btn,#mw-skip-pop
  const b=e.target.closest?.('.mw-panel button,.mw-offer-slot button');if(!b||!isMaws(ctx()))return;const c=ctx(),chat=c.chat||[],v=getView(c),s=read(c),latest=Number(b.closest('.mes[mesid]')?.getAttribute('mesid'))===lastAssistant(chat),a=b.dataset.action,id=b.dataset.quest;
  if(b.__mwDirectBound && (a==='mawsDebug'||a==='directorToggle'))return;
  if(a==='reviewNpcCandidate'&&latest){openNpcCandidate(b.dataset.candidate);return;}
- if(a==='panelCollapse'){const key=currentScope(c)+'|'+Number(b.closest('.mes[mesid]')?.getAttribute('mesid'));ui.collapsedPanels.has(key)?ui.collapsedPanels.delete(key):ui.collapsedPanels.add(key);redraw();return;}
+ if(a==='panelCollapse'){const key=currentScope(c)+'|'+Number(b.closest('.mes[mesid]')?.getAttribute('mesid'));ui.expandedPanels.has(key)?ui.expandedPanels.delete(key):ui.expandedPanels.add(key);redraw();return;}
  if(a==='speakerCopy'){
   const item=(s.speakerStyles||[]).find(x=>x.id===b.dataset.speaker);if(!item)return;
   const value=mawsSpeakerLorebookLine(item);
@@ -4071,11 +4079,12 @@ host.__MAWS_NATIVE_BRIDGE__={
    if(scope===currentScope(ctx())&&lastPrompt===promptWanted&&promptScope===scope)break;
   }
  },
+ refresh:()=>{if(!stopped)schedule();},
  openPanel:()=>{
   if(stopped)return false;
   const latest=lastAssistant(ctx().chat||[]);
   if(latest<0)return false;
-  ui.collapsedPanels.delete(currentScope(ctx())+'|'+latest);
+  ui.expandedPanels.add(currentScope(ctx())+'|'+latest);
   schedule();
   host.setTimeout(()=>{
    if(stopped)return;

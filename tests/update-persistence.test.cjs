@@ -8,8 +8,8 @@ const index = fs.readFileSync(path.join(root, 'index.js'), 'utf8');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 
 assert.equal(manifest.auto_update, true, 'SillyTavern must be allowed to update MAWS');
-assert.match(index, /engine\.js\?native=\$\{ENGINE_BUILD\}-\$\{token\}-\$\{Date\.now\(\)\}/,
-  'A reload must not re-import a cached engine from the previous extension version');
+assert.match(index, /engine\.js\?native=\$\{ENGINE_BUILD\}-\$\{token\}/,
+  'Import is versioned so updates invalidate cache without downloads on each reload');
 
 // Test the real toggle/read/save functions from index.js without starting the UI.
 const header = index.slice(0, index.indexOf('function panelHost()'));
