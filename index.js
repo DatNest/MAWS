@@ -174,7 +174,11 @@ function reconcile() {
         } else if (!state.running) {
           await clearPrompt();
         }
-        if (state.running) await window.__MAWS_NATIVE_BRIDGE__?.syncPrompt?.();
+        if (state.running) {
+          await window.__MAWS_NATIVE_BRIDGE__?.syncPrompt?.();
+          // ON/OFF toggles must repaint even while the engine remains warm.
+          window.__MAWS_NATIVE_BRIDGE__?.refresh?.();
+        }
         // Check again after async import/cleanup or prompt sync, since the chat
         // can change during any of those operations.
         if ((state.available && isEnabled()) === wanted && (state.available || !state.running)) break;
