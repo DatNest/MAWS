@@ -3560,7 +3560,7 @@ function mawsDecorateOnce(el,message,dialogue,styles,sceneHtml){
  renderTextDecorations(el,dialogue,styles,sceneHtml);
  body.__mwDecorated=signature;
 }
-function render(){frame=null;if(stopped||busy)return;let c;try{c=ctx();}catch{return;}const root=doc.getElementById('chat');if(!root)return;mawsWatchCurrentChat();if(!mawsEnabled(c)){resetWorkflows();doc.getElementById(THEME_STYLE_ID)?.remove();root.querySelectorAll('.mw-panel,.mw-offer-slot').forEach(x=>x.remove());doc.getElementById('mw-skip-box')?.remove();doc.getElementById('mw-skip-pop')?.remove();return;}busy=true;try{const chat=c.chat||[],last=lastAssistant(chat),scope=currentScope(c);
+function render(){frame=null;if(stopped||busy)return;let c;try{c=ctx();}catch{return;}const root=doc.getElementById('chat');if(!root)return;mawsWatchCurrentChat();if(!mawsEnabled(c)){ui.expandedPanels.clear();resetWorkflows();doc.getElementById(THEME_STYLE_ID)?.remove();root.querySelectorAll('.mw-panel,.mw-offer-slot').forEach(x=>x.remove());doc.getElementById('mw-skip-box')?.remove();doc.getElementById('mw-skip-pop')?.remove();return;}busy=true;try{const chat=c.chat||[],last=lastAssistant(chat),scope=currentScope(c);
  if(renderedScope!==scope){
   root.querySelectorAll('.mw-panel,.mw-offer-slot').forEach(x=>x.remove());
   ui.openDirector=false;ui.skipOpen=false;ui.editStory=null;ui.mainEdit=null;ui.npcEdit=null;
