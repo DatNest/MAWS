@@ -3,7 +3,7 @@ const DATA_KEY = 'maws_engine_universal_v1';
 const LEGACY_KEY = 'maws_engine_avatar_v1';
 const PROMPT_ID = 'MAWS_UNIVERSAL_DIRECTOR';
 const PANEL_ID = 'maws-native-settings';
-const ENGINE_BUILD = '2.4.3';
+const ENGINE_BUILD = '2.4.4';
 
 const state = {
   running: false,
@@ -86,7 +86,7 @@ function mountPanel() {
       <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down" aria-hidden="true"></div>
     </div>
     <div class="inline-drawer-content maws-native-body">
-      <div class="maws-native-eyebrow">Ролевой движок · 2.4.3</div>
+      <div class="maws-native-eyebrow">Ролевой движок · 2.4.4</div>
       <label class="maws-native-switch" for="maws-native-enabled">
         <input id="maws-native-enabled" type="checkbox" role="switch" aria-describedby="maws-native-hint">
         <span class="maws-native-switch-track" aria-hidden="true"></span>
@@ -140,9 +140,9 @@ async function startEngine() {
   if (state.running) return;
   // The engine itself uses chatMetadata; its UI is lazily mounted on rendered messages.
   const token = ++state.loadNumber;
-  // A monotonically increasing counter alone resets to 1 after each page load.
-  // Use a per-load cache buster so an extension update cannot revive stale engine.js.
-  await import(`./engine.js?native=${ENGINE_BUILD}-${token}-${Date.now()}`);
+  // Versioned URL stays cacheable across reloads. The counter only changes when
+  // the package itself is stopped and started, never for ordinary chat switches.
+  await import(`./engine.js?native=${ENGINE_BUILD}-${token}`);
   if (!window.__MAWS_NATIVE_BRIDGE__ || typeof window.__mawsUniversalCleanup !== 'function') {
     throw new Error('Движок не создал подключение к SillyTavern');
   }
@@ -159,16 +159,26 @@ async function stopEngine() {
 
 function reconcile() {
   setLoading(true);
-  // A single serialized lifecycle handles rapid toggles and fast chat switches.
+  // Keep the engine mounted across per-chat ON/OFF changes. Re-importing a
+  // 400+ KB script and reattaching every listener on each chat switch was
+  // the primary lifecycle cost. In an OFF chat its prompt/UI still clear.
   state.pending = state.pending.catch(() => {}).then(async () => {
     try {
-      if (state.available && isEnabled() && !state.running) await startEngine();
-      if ((!state.available || !isEnabled()) && state.running) await stopEngine();
-      // Re-evaluate after an asynchronous import or cleanup. The chat may have changed.
-      if (state.available && isEnabled() && !state.running) await startEngine();
-      if ((!state.available || !isEnabled()) && state.running) await stopEngine();
-      if (!state.running) await clearPrompt();
-      else await window.__MAWS_NATIVE_BRIDGE__?.syncPrompt?.();
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const wanted = state.available && isEnabled();
+        if (!state.available) {
+          if (state.running) await stopEngine();
+          else await clearPrompt();
+        } else if (wanted && !state.running) {
+          await startEngine();
+        } else if (!state.running) {
+          await clearPrompt();
+        }
+        if (state.running) await window.__MAWS_NATIVE_BRIDGE__?.syncPrompt?.();
+        // Check again after async import/cleanup or prompt sync, since the chat
+        // can change during any of those operations.
+        if ((state.available && isEnabled()) === wanted && (state.available || !state.running)) break;
+      }
       state.error = '';
     } catch (error) {
       state.error = String(error?.message ?? error).slice(0, 220);
@@ -184,7 +194,13 @@ window.MAWSNativeBeforeGeneration = async function (_chat, _contextSize, _abort,
   if (['quiet', 'impersonate'].includes(String(type ?? '').toLowerCase())) return;
   const scope = currentScope();
   if (!scope || !state.available) return;
-  if (!isEnabled()) { if (state.running) await reconcile(); return; }
+  if (!isEnabled()) {
+    // A warm engine may still be mounted while this chat is OFF. Ensure its
+    // prompt is blank before any ordinary generation in the disabled chat.
+    await state.pending;
+    if (state.running) await window.__MAWS_NATIVE_BRIDGE__?.syncPrompt?.();
+    return;
+  }
   if (!state.running) await reconcile();
   else await state.pending;
   if (scope !== currentScope() || !state.running || !isEnabled()) return;
